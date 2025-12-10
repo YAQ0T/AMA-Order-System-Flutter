@@ -1,0 +1,44 @@
+# Flutter/Dart/Pub
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+build/
+**/node_modules/
+.DS_Store
+
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/app/google-services.json
+**/android/key.properties
+
+# iOS/macOS
+**/ios/Pods/
+**/ios/Runner/GoogleService-Info.plist
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/App.framework
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/macos/Podfile.lock
+
+# Windows/Linux
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+
+# Misc
+pubspec.lock
+macos/Podfile.lock

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install Certificate - AMA Order System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: white;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #6366f1;
+        }
+
+        .step {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #6366f1;
+        }
+
+        .step h3 {
+            margin-top: 0;
+            color: #ec4899;
+        }
+
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #6366f1, #ec4899);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 20px 0;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .warning {
+            background: rgba(239, 68, 68, 0.1);
+            border-left-color: #ef4444;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>📱 Install Certificate for Home Screen App</h1>
+
+    <p>To use the AMA Order System as a home screen app on your iPhone, you need to install and trust the SSL
+        certificate.</p>
+
+    <a href="/cert.crt" class="download-btn" download>📥 Download Certificate</a>
+
+    <div class="step">
+        <h3>Step 1: Download Certificate</h3>
+        <p>Tap the button above to download the certificate file.</p>
+        <p class="warning">⚠️ You'll see a message "This website is trying to download a configuration profile". Tap
+            <strong>Allow</strong>.</p>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Install Profile</h3>
+        <p>Go to <strong>Settings</strong> → <strong>General</strong> → <strong>VPN & Device Management</strong></p>
+        <p>Tap on the downloaded profile and tap <strong>Install</strong> (you may need to enter your passcode)</p>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Enable Trust</h3>
+        <p>Go to <strong>Settings</strong> → <strong>General</strong> → <strong>About</strong> → <strong>Certificate
+                Trust Settings</strong></p>
+        <p>Toggle ON the switch for your certificate</p>
+        <p class="warning">⚠️ This step is CRITICAL! Without it, the home screen app won't work.</p>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Add to Home Screen</h3>
+        <p>1. Go back to Safari and visit the main app</p>
+        <p>2. Tap the <strong>Share</strong> button (square with arrow)</p>
+        <p>3. Tap <strong>Add to Home Screen</strong></p>
+        <p>4. Tap <strong>Add</strong></p>
+    </div>
+
+    <div class="step">
+        <h3>Step 5: Launch App</h3>
+        <p>Tap the app icon on your home screen - it should now work! 🎉</p>
+    </div>
+
+    <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
+
+    <h2>Troubleshooting</h2>
+    <ul>
+        <li><strong>Still getting "Load Failed"?</strong> Make sure you completed Step 3 (Certificate Trust Settings)
+        </li>
+        <li><strong>Can't find the profile?</strong> Try downloading the certificate again</li>
+        <li><strong>Need help?</strong> Ask your system administrator</li>
+    </ul>
+
+    <p style="text-align: center; margin-top: 40px; color: #94a3b8;">
+        <a href="/" style="color: #6366f1;">← Back to App</a>
+    </p>
+</body>
+
+</html>

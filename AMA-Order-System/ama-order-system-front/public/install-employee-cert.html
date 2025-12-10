@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install Employee Certificate - AMA Order System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .alert {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .alert h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        .alert-danger h3 {
+            color: #721c24;
+        }
+
+        .step {
+            margin-bottom: 30px;
+        }
+
+        .step h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .step p {
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .download-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .download-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .download-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .download-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .download-card p {
+            margin-bottom: 20px;
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .download-btn {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #f0f0f0;
+            transform: scale(1.05);
+        }
+
+        .password-box {
+            background: #e7f3ff;
+            border: 2px solid #2196F3;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .password-box h3 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+
+        .password {
+            font-size: 2em;
+            font-weight: bold;
+            color: #1565C0;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .platform-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .platform-tab {
+            padding: 10px 20px;
+            background: #e0e0e0;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .platform-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .platform-content {
+            display: none;
+        }
+
+        .platform-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .download-section {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 AMA Order System</h1>
+            <p>Employee Certificate Installation</p>
+        </div>
+
+        <div class="content">
+            <div class="alert alert-danger">
+                <h3>⚠️ Security Requirement</h3>
+                <p>This system now requires <strong>employee certificates</strong> for access. You must install both certificates below to use the application.</p>
+            </div>
+
+            <div class="step">
+                <h2>📥 Step 1: Download Certificates</h2>
+                <p>Download both certificates to your device:</p>
+                
+                <div class="download-section">
+                    <div class="download-card">
+                        <h3>CA Certificate</h3>
+                        <p>Allows your device to trust the server</p>
+                        <a href="/ca-cert.crt" class="download-btn" download>Download CA Cert</a>
+                    </div>
+                    
+                    <div class="download-card">
+                        <h3>Employee Certificate</h3>
+                        <p>Proves your device is authorized</p>
+                        <a href="/employee-cert.p12" class="download-btn" download>Download Employee Cert</a>
+                    </div>
+                </div>
+
+                <div class="password-box">
+                    <h3>Employee Certificate Password:</h3>
+                    <div class="password">ama2024</div>
+                </div>
+            </div>
+
+            <div class="step">
+                <h2>📱 Step 2: Install Certificates</h2>
+                <p>Select your device platform for installation instructions:</p>
+
+                <div class="platform-tabs">
+                    <button class="platform-tab active" onclick="showPlatform('ios')">iOS (iPhone/iPad)</button>
+                    <button class="platform-tab" onclick="showPlatform('macos')">macOS</button>
+                    <button class="platform-tab" onclick="showPlatform('windows')">Windows</button>
+                    <button class="platform-tab" onclick="showPlatform('android')">Android</button>
+                </div>
+
+                <div id="ios" class="platform-content active">
+                    <div class="instructions">
+                        <h3>iOS Installation Steps:</h3>
+                        <ol>
+                            <li><strong>Install CA Certificate:</strong>
+                                <ul>
+                                    <li>Tap the downloaded ca-cert.crt file</li>
+                                    <li>Go to Settings → General → VPN & Device Management</li>
+                                    <li>Tap "AMA Root CA" and install it</li>
+                                </ul>
+                            </li>
+                            <li><strong>Install Employee Certificate:</strong>
+                                <ul>
+                                    <li>Tap the downloaded employee-cert.p12 file</li>
+                                    <li>Enter password: <strong>ama2024</strong></li>
+                                    <li>Go to Settings → General → VPN & Device Management</li>
+                                    <li>Tap "AMA Employee Certificate" and install it</li>
+                                </ul>
+                            </li>
+                            <li><strong>Enable Trust (CRITICAL!):</strong>
+                                <ul>
+                                    <li>Go to Settings → General → About</li>
+                                    <li>Scroll to "Certificate Trust Settings"</li>
+                                    <li>Enable trust for "AMA Root CA"</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div id="macos" class="platform-content">
+                    <div class="instructions">
+                        <h3>macOS Installation Steps:</h3>
+                        <ol>
+                            <li>Double-click <strong>ca-cert.crt</strong> → Add to System keychain</li>
+                            <li>Double-click <strong>employee-cert.p12</strong> → Enter password: <strong>ama2024</strong></li>
+                            <li>Open Keychain Access → System keychain</li>
+                            <li>Find "AMA Root CA" → Double-click → Trust → "Always Trust"</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div id="windows" class="platform-content">
+                    <div class="instructions">
+                        <h3>Windows Installation Steps:</h3>
+                        <ol>
+                            <li>Double-click <strong>ca-cert.crt</strong> → Install Certificate → Local Machine</li>
+                            <li>Place in "Trusted Root Certification Authorities"</li>
+                            <li>Double-click <strong>employee-cert.p12</strong> → Local Machine</li>
+                            <li>Enter password: <strong>ama2024</strong></li>
+                            <li>Mark as exportable → Automatically select store</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div id="android" class="platform-content">
+                    <div class="instructions">
+                        <h3>Android Installation Steps:</h3>
+                        <ol>
+                            <li>Go to Settings → Security → Encryption & credentials</li>
+                            <li>Install CA certificate: Tap "Install a certificate" → "CA certificate"</li>
+                            <li>Select ca-cert.crt</li>
+                            <li>Install employee certificate: "VPN & app user certificate"</li>
+                            <li>Select employee-cert.p12 → Enter password: <strong>ama2024</strong></li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step">
+                <h2>✅ Step 3: Access the Application</h2>
+                <p>After installing both certificates, you can access the application at:</p>
+                <div class="instructions">
+                    <ul>
+                        <li><strong>Production:</strong> <a href="https://10.10.10.110:5174">https://10.10.10.110:5174</a> or <a href="https://213.6.226.163:5174">https://213.6.226.163:5174</a></li>
+                        <li><strong>Development:</strong> <a href="https://10.10.10.110:5173">https://10.10.10.110:5173</a> or <a href="https://213.6.226.163:5173">https://213.6.226.163:5173</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="alert">
+                <h3>📖 Need More Help?</h3>
+                <p>For detailed installation instructions and troubleshooting, see the <strong>EMPLOYEE_CERTIFICATE_SETUP.md</strong> file or contact IT support.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showPlatform(platform) {
+            // Hide all platform contents
+            document.querySelectorAll('.platform-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.platform-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected platform
+            document.getElementById(platform).classList.add('active');
+            
+            // Activate clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
