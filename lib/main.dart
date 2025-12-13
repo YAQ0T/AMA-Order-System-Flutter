@@ -84,18 +84,28 @@ class AMAOrderApp extends StatelessWidget {
             tertiaryContainer: const Color(0xFFDDE7F3),
           );
 
+          final boldTextTheme =
+              _boldTextTheme(ThemeData(colorScheme: scheme, useMaterial3: true).textTheme);
+
           return MaterialApp(
             title: 'AMA Order System',
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               colorScheme: scheme,
               useMaterial3: true,
+              textTheme: boldTextTheme,
+              primaryTextTheme: boldTextTheme.apply(
+                bodyColor: scheme.onPrimary,
+                displayColor: scheme.onPrimary,
+              ),
               scaffoldBackgroundColor: surfaceBase,
               appBarTheme: AppBarTheme(
                 centerTitle: true,
                 backgroundColor: scheme.surface,
                 foregroundColor: scheme.onSurface,
                 elevation: 0,
+                titleTextStyle: boldTextTheme.titleLarge?.copyWith(color: scheme.onSurface),
+                toolbarTextStyle: boldTextTheme.bodyMedium?.copyWith(color: scheme.onSurface),
               ),
               cardTheme: CardThemeData(
                 color: scheme.surface,
@@ -124,7 +134,7 @@ class AMAOrderApp extends StatelessWidget {
                 backgroundColor: scheme.surfaceContainerHighest,
                 selectedColor: scheme.primaryContainer,
                 disabledColor: scheme.surfaceContainerHighest,
-                labelStyle: TextStyle(color: scheme.onSurface),
+                labelStyle: boldTextTheme.labelMedium?.copyWith(color: scheme.onSurface),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -132,6 +142,7 @@ class AMAOrderApp extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: scheme.primary,
                   foregroundColor: scheme.onPrimary,
+                  textStyle: boldTextTheme.labelLarge,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -140,12 +151,14 @@ class AMAOrderApp extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: scheme.secondary,
                   foregroundColor: scheme.onSecondary,
+                  textStyle: boldTextTheme.labelLarge,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               textButtonTheme: TextButtonThemeData(
                 style: TextButton.styleFrom(
                   foregroundColor: scheme.primary,
+                  textStyle: boldTextTheme.labelLarge,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
@@ -166,6 +179,27 @@ class AMAOrderApp extends StatelessWidget {
     if (!auth.isAuthenticated) return const LoginPage();
     if (!auth.isApproved) return const PendingApprovalPage();
     return RoleDashboard(user: auth.user!);
+  }
+
+  TextTheme _boldTextTheme(TextTheme base) {
+    TextStyle? bold(TextStyle? style) => style?.copyWith(fontWeight: FontWeight.w700);
+    return base.copyWith(
+      displayLarge: bold(base.displayLarge),
+      displayMedium: bold(base.displayMedium),
+      displaySmall: bold(base.displaySmall),
+      headlineLarge: bold(base.headlineLarge),
+      headlineMedium: bold(base.headlineMedium),
+      headlineSmall: bold(base.headlineSmall),
+      titleLarge: bold(base.titleLarge),
+      titleMedium: bold(base.titleMedium),
+      titleSmall: bold(base.titleSmall),
+      bodyLarge: bold(base.bodyLarge),
+      bodyMedium: bold(base.bodyMedium),
+      bodySmall: bold(base.bodySmall),
+      labelLarge: bold(base.labelLarge),
+      labelMedium: bold(base.labelMedium),
+      labelSmall: bold(base.labelSmall),
+    );
   }
 }
 

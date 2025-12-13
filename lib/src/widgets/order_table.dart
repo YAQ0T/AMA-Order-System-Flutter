@@ -17,6 +17,7 @@ class OrderTable extends StatelessWidget {
     this.inlineStatusButton = false,
     this.onPrint,
     this.showPrices = true,
+    this.onSendToErp,
   });
 
   final List<OrderModel> orders;
@@ -30,6 +31,7 @@ class OrderTable extends StatelessWidget {
   final bool inlineStatusButton;
   final Future<void> Function(OrderModel)? onPrint;
   final bool showPrices;
+  final Future<void> Function(OrderModel)? onSendToErp;
 
   static const _allowedStatuses = [
     'pending',
@@ -120,6 +122,15 @@ class OrderTable extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (onSendToErp != null && order.status == 'completed')
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilledButton.icon(
+                          icon: const Icon(Icons.cloud_upload_outlined),
+                          label: const Text('Send to ERP'),
+                          onPressed: () => onSendToErp!(order),
+                        ),
+                      ),
                     if (onPrint != null)
                       IconButton(
                         icon: const Icon(Icons.print),
