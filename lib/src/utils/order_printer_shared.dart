@@ -41,6 +41,9 @@ pw.Document buildOrderDocument(
   String formatPrice(double? value) =>
       value == null ? '-' : '${value.toStringAsFixed(2)} ₪';
 
+  String formatQuantity(num value) =>
+      value % 1 == 0 ? value.toInt().toString() : value.toString();
+
   final itemsWithTotals = [
     for (var i = 0; i < order.items.length; i++)
       (
@@ -158,7 +161,7 @@ pw.Document buildOrderDocument(
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
-                      '${row.item.quantity}',
+                      formatQuantity(row.item.quantity),
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(fontSize: 11),
                     ),

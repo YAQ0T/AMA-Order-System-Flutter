@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/activity_log.dart';
+import '../../models/order.dart';
 import '../../models/user.dart';
 import '../../state/admin_notifier.dart';
 import '../../state/order_notifier.dart';
@@ -233,7 +234,12 @@ class _OrdersTab extends StatelessWidget {
               order: order,
               availableStatuses: const ['pending', 'in-progress', 'completed', 'archived', 'entered_erp'],
               onStatusChange: (status) => orders.updateStatus(order.id, status),
-              onDelete: () => admin.deleteOrder(order.id),
+              onDelete: () async {
+                final confirmed = await _confirmDeleteOrder(context, order);
+                if (confirmed) {
+                  await admin.deleteOrder(order.id);
+                }
+              },
             ),
           ),
           if (admin.orders.isEmpty)
@@ -277,4 +283,24 @@ class _LogsTab extends StatelessWidget {
       trailing: Text(log.createdAt.toLocal().toString().split('.').first),
     );
   }
+}
+
+Future<bool> _confirmDeleteOrder(BuildContext context, OrderModel order) async {
+  final title = order.titleOrFallback;
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete order?'),
+      content: Text('Delete "$title"? This action cannot be undone.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton.tonal(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: FilledButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  return result == true;
 }

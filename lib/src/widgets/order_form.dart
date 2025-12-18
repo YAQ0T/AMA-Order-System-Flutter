@@ -417,8 +417,15 @@ class _ItemsEditorState extends State<_ItemsEditor> {
     for (final ch in input.split('')) {
       buffer.write(map[ch] ?? ch);
     }
-    return buffer.toString();
+    final normalized = buffer.toString();
+    return normalized
+        .replaceAll(',', '.')
+        .replaceAll('٫', '.')
+        .replaceAll('٬', '.')
+        .replaceAll('،', '.');
   }
+
+  String _formatQuantity(num value) => value % 1 == 0 ? value.toInt().toString() : value.toString();
 
   @override
   void initState() {
@@ -662,19 +669,20 @@ class _ItemsEditorState extends State<_ItemsEditor> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextFormField(
-                        initialValue: item.quantity.toString(),
+                        initialValue: _formatQuantity(item.quantity),
                         focusNode: focus.qty,
                         decoration: const InputDecoration(labelText: 'Qty'),
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.next,
                         onFieldSubmitted: (_) => focus.price.requestFocus(),
                         onChanged: (value) {
                           final normalized = _normalizeDigits(value);
-                          item.quantity = int.tryParse(normalized) ?? 1;
+                          final parsed = double.tryParse(normalized);
+                          item.quantity = parsed ?? 0;
                           widget.onChanged(List.from(widget.items));
                         },
                         validator: (value) =>
-                            (int.tryParse(_normalizeDigits(value ?? '')) ?? 0) <= 0 ? 'Invalid' : null,
+                            (double.tryParse(_normalizeDigits(value ?? '')) ?? 0) <= 0 ? 'Invalid' : null,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -683,7 +691,7 @@ class _ItemsEditorState extends State<_ItemsEditor> {
                         initialValue: item.price?.toString() ?? '',
                         focusNode: focus.price,
                         decoration: const InputDecoration(labelText: 'Price'),
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.done,
                         onFieldSubmitted: (_) {
                           widget.onAdd();

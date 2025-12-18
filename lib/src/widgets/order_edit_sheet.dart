@@ -97,6 +97,43 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
     }
   }
 
+  String _normalizeDigits(String input) {
+    const map = {
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9',
+      '۰': '0',
+      '۱': '1',
+      '۲': '2',
+      '۳': '3',
+      '۴': '4',
+      '۵': '5',
+      '۶': '6',
+      '۷': '7',
+      '۸': '8',
+      '۹': '9',
+    };
+    final buffer = StringBuffer();
+    for (final ch in input.split('')) {
+      buffer.write(map[ch] ?? ch);
+    }
+    final normalized = buffer.toString();
+    return normalized
+        .replaceAll(',', '.')
+        .replaceAll('٫', '.')
+        .replaceAll('٬', '.')
+        .replaceAll('،', '.');
+  }
+
+  String _formatQuantity(num value) => value % 1 == 0 ? value.toInt().toString() : value.toString();
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -260,10 +297,14 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
             Expanded(
               flex: 1,
               child: TextFormField(
-                initialValue: '${item.quantity}',
+                initialValue: _formatQuantity(item.quantity),
                 decoration: const InputDecoration(labelText: 'Qty'),
-                keyboardType: TextInputType.number,
-                onChanged: (v) => item.quantity = int.tryParse(v) ?? item.quantity,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (v) {
+                  final normalized = _normalizeDigits(v);
+                  final parsed = double.tryParse(normalized);
+                  item.quantity = parsed ?? item.quantity;
+                },
               ),
             ),
             const SizedBox(width: 8),
@@ -273,7 +314,7 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
                 initialValue: item.price != null ? '${item.price}' : '',
                 decoration: const InputDecoration(labelText: 'Price'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (v) => item.price = double.tryParse(v),
+                onChanged: (v) => item.price = double.tryParse(_normalizeDigits(v)),
               ),
             ),
             const SizedBox(width: 4),

@@ -89,10 +89,10 @@ class OrderDraft {
 }
 
 class OrderItemInput {
-  OrderItemInput({this.name = '', this.quantity = 1, this.price});
+  OrderItemInput({this.name = '', this.quantity = 1.0, this.price});
 
   String name;
-  int quantity;
+  double quantity;
   double? price;
 
   Map<String, dynamic> toJson() {

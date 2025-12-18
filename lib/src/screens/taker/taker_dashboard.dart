@@ -23,9 +23,46 @@ class _TakerDashboardState extends State<TakerDashboard> {
     });
   }
 
+  String _normalizeDigits(String input) {
+    const map = {
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9',
+      '۰': '0',
+      '۱': '1',
+      '۲': '2',
+      '۳': '3',
+      '۴': '4',
+      '۵': '5',
+      '۶': '6',
+      '۷': '7',
+      '۸': '8',
+      '۹': '9',
+    };
+    final buffer = StringBuffer();
+    for (final ch in input.split('')) {
+      buffer.write(map[ch] ?? ch);
+    }
+    final normalized = buffer.toString();
+    return normalized
+        .replaceAll(',', '.')
+        .replaceAll('٫', '.')
+        .replaceAll('٬', '.')
+        .replaceAll('،', '.');
+  }
+
+  String _formatQuantity(num value) => value % 1 == 0 ? value.toInt().toString() : value.toString();
+
   Future<void> _editItem(OrderModel order, OrderItemModel item) async {
     final nameCtrl = TextEditingController(text: item.name);
-    final qtyCtrl = TextEditingController(text: '${item.quantity}');
+    final qtyCtrl = TextEditingController(text: _formatQuantity(item.quantity));
 
     await showModalBottomSheet(
       context: context,
@@ -52,7 +89,7 @@ class _TakerDashboardState extends State<TakerDashboard> {
               TextField(
                 controller: qtyCtrl,
                 decoration: const InputDecoration(labelText: 'Quantity'),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
               const SizedBox(height: 12),
               Row(
@@ -66,7 +103,8 @@ class _TakerDashboardState extends State<TakerDashboard> {
                   FilledButton(
                     onPressed: () async {
                       final newName = nameCtrl.text.trim();
-                      final newQty = int.tryParse(qtyCtrl.text.trim());
+                      final normalizedQty = _normalizeDigits(qtyCtrl.text.trim());
+                      final newQty = double.tryParse(normalizedQty);
                       if (newName.isEmpty || newQty == null || newQty <= 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Enter a name and a positive quantity')));
@@ -104,8 +142,17 @@ class _TakerDashboardState extends State<TakerDashboard> {
         );
       },
     );
-    nameCtrl.dispose();
-    qtyCtrl.dispose();
+    if (!mounted) {
+      nameCtrl.dispose();
+      qtyCtrl.dispose();
+      return;
+    }
+    // Delay disposal until the bottom sheet is fully removed to avoid rebuilds
+    // referencing a disposed controller during the close animation.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nameCtrl.dispose();
+      qtyCtrl.dispose();
+    });
   }
 
   @override

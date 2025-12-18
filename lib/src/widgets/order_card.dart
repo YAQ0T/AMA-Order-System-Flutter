@@ -87,7 +87,7 @@ class OrderCard extends StatelessWidget {
                 runSpacing: 4,
                 children: order.items
                     .map((item) => Chip(
-                      label: Text('${item.name} x${item.quantity}'
+                      label: Text('${item.name} x${_formatQuantity(item.quantity)}'
                           '${item.price != null ? ' - ${item.price}' : ''}'),
                       visualDensity: VisualDensity.compact,
                       backgroundColor: _itemColor(scheme, item.status),
@@ -105,6 +105,9 @@ class OrderCard extends StatelessWidget {
       ),
     );
   }
+
+  String _formatQuantity(num quantity) =>
+      quantity % 1 == 0 ? quantity.toInt().toString() : quantity.toString();
 
   String _labelForStatus(String status) {
     switch (status) {

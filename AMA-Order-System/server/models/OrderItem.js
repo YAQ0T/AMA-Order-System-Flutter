@@ -7,9 +7,14 @@ module.exports = (sequelize) => {
             allowNull: false
         },
         quantity: {
-            type: DataTypes.INTEGER,
+            // Allow fractional quantities (e.g. 0.5, 1.25)
+            type: DataTypes.DECIMAL(10, 3),
             allowNull: false,
-            defaultValue: 1
+            defaultValue: 1,
+            get() {
+                const raw = this.getDataValue('quantity');
+                return raw === null ? null : Number(raw);
+            }
         },
         status: {
             type: DataTypes.ENUM('collected', 'unavailable'),

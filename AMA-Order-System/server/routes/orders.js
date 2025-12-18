@@ -29,6 +29,9 @@ const sanitizeItems = (items, { allowEmpty = false } = {}) => {
             ? null
             : Number(rawItem.price);
         const priceNum = Number.isFinite(priceNumRaw) ? priceNumRaw : null;
+        const normalizedQuantity = Number.isFinite(quantityNum)
+            ? Math.round(quantityNum * 1000) / 1000
+            : quantityNum;
 
         // Skip completely empty rows the UI might send
         if (!name && (rawItem.quantity === undefined || rawItem.quantity === null || rawItem.quantity === '')) {
@@ -53,7 +56,7 @@ const sanitizeItems = (items, { allowEmpty = false } = {}) => {
 
         cleaned.push({
             name,
-            quantity: Math.round(quantityNum),
+            quantity: normalizedQuantity,
             price: priceNum,
             status
         });
@@ -525,8 +528,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 const oldItems = order.Items || [];
                 const newItems = sanitizedItems || [];
 
-                const oldItemsMap = new Map(oldItems.map(i => [i.name, i.quantity]));
-                const newItemsMap = new Map(newItems.map(i => [i.name, i.quantity]));
+                const oldItemsMap = new Map(oldItems.map(i => [i.name, Number(i.quantity)]));
+                const newItemsMap = new Map(newItems.map(i => [i.name, Number(i.quantity)]));
 
                 // Track which items are updates vs additions
                 const isUpdate = new Map();

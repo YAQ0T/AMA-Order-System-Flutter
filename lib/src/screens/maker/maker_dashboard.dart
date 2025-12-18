@@ -126,7 +126,16 @@ class _OrdersTab extends StatelessWidget {
         OrderTable(
           orders: orders.orders,
           onUpdateStatus: (id, status) => orders.updateStatus(id, status),
-          onDelete: (id) => orders.deleteOrder(id),
+          onDelete: (id) async {
+            final order = orders.orders.firstWhere(
+              (o) => o.id == id,
+              orElse: () => OrderModel(id: id, status: 'pending', createdAt: DateTime.now()),
+            );
+            final confirmed = await _confirmDeleteOrder(context, order);
+            if (confirmed) {
+              await orders.deleteOrder(id);
+            }
+          },
           onEdit: onEdit,
           onPrint: (order) => OrderPrinter.printOrder(order),
           showLogs: true,
@@ -170,7 +179,16 @@ class _ArchivedTab extends StatelessWidget {
         OrderTable(
           orders: orders.orders,
           onUpdateStatus: (id, status) => orders.updateStatus(id, status),
-          onDelete: (id) => orders.deleteOrder(id),
+          onDelete: (id) async {
+            final order = orders.orders.firstWhere(
+              (o) => o.id == id,
+              orElse: () => OrderModel(id: id, status: 'pending', createdAt: DateTime.now()),
+            );
+            final confirmed = await _confirmDeleteOrder(context, order);
+            if (confirmed) {
+              await orders.deleteOrder(id);
+            }
+          },
           onEdit: onEdit,
           onPrint: (order) => OrderPrinter.printOrder(order),
           showLogs: true,
@@ -322,4 +340,24 @@ class _ArchivedBulkSendState extends State<_ArchivedBulkSend> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Orders sent')));
     }
   }
+}
+
+Future<bool> _confirmDeleteOrder(BuildContext context, OrderModel order) async {
+  final title = order.titleOrFallback;
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete order?'),
+      content: Text('Delete "$title"? This action cannot be undone.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton.tonal(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: FilledButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  return result == true;
 }

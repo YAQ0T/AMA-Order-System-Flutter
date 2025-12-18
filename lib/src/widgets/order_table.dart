@@ -271,7 +271,7 @@ class OrderTable extends StatelessWidget {
                 padding: const EdgeInsets.all(6),
                 child: GestureDetector(
                   onLongPress: onItemEdit == null ? null : () => onItemEdit!(order, item),
-                  child: Text('${item.quantity}', textAlign: TextAlign.right),
+                  child: Text(_formatQuantity(item.quantity), textAlign: TextAlign.right),
                 ),
               ),
               if (showPrices)
@@ -324,6 +324,8 @@ class OrderTable extends StatelessWidget {
       ],
     );
   }
+
+  String _formatQuantity(num qty) => qty % 1 == 0 ? qty.toInt().toString() : qty.toString();
 
   Color? _rowColor(ColorScheme scheme, String? status) {
     switch (status) {
