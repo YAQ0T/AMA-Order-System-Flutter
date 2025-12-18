@@ -15,8 +15,8 @@ class OrderForm extends StatefulWidget {
 }
 
 class _OrderFormState extends State<OrderForm> {
-  final _formKey = GlobalKey<FormState>();
-  final _itemsEditorKey = GlobalKey<_ItemsEditorState>();
+  GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  GlobalKey<_ItemsEditorState> _itemsEditorKey = GlobalKey<_ItemsEditorState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _cityController = TextEditingController(text: 'نابلس');
@@ -67,6 +67,27 @@ class _OrderFormState extends State<OrderForm> {
     });
   }
 
+  void _resetForm() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _formKey = GlobalKey<FormState>();
+        _itemsEditorKey = GlobalKey<_ItemsEditorState>();
+        _titleController.clear();
+        _descriptionController.clear();
+        _cityController.text = 'نابلس';
+        _city = 'نابلس';
+        _items = [OrderItemInput()];
+        _selectedTakers.clear();
+        _accounterId = null;
+        _archive = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((__) {
+        _itemsEditorKey.currentState?.focusFirstName();
+      });
+    });
+  }
+
   Future<void> _submit(OrderNotifier orders) async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -87,17 +108,7 @@ class _OrderFormState extends State<OrderForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Order created')),
       );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _formKey.currentState?.reset();
-        setState(() {
-          _items = [OrderItemInput()];
-          _selectedTakers.clear();
-          _accounterId = null;
-          _city = 'نابلس';
-          _archive = false;
-        });
-      });
+      _resetForm();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -308,7 +319,6 @@ class _CityField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    controller.text = controller.text.isEmpty ? initialValue : controller.text;
     return Autocomplete<String>(
       initialValue: TextEditingValue(text: controller.text),
       optionsBuilder: (TextEditingValue textEditingValue) {
@@ -325,7 +335,12 @@ class _CityField extends StatelessWidget {
         onSelected(value);
       },
       fieldViewBuilder: (context, textEditingController, fieldFocus, onFieldSubmitted) {
-        textEditingController.value = controller.value;
+        if (textEditingController.text != controller.text) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (textEditingController.text == controller.text) return;
+            textEditingController.value = controller.value;
+          });
+        }
         return TextFormField(
           controller: textEditingController,
           focusNode: focusNode,
@@ -470,9 +485,12 @@ class _ItemsEditorState extends State<_ItemsEditor> {
       final controller = _focuses[i].nameController;
       final text = widget.items[i].name;
       if (controller.text != text) {
-        controller.text = text;
-        controller.selection =
-            TextSelection.collapsed(offset: text.length);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (controller.text == text) return;
+          controller.text = text;
+          controller.selection = TextSelection.collapsed(offset: text.length);
+        });
       }
     }
   }
@@ -575,10 +593,6 @@ class _ItemsEditorState extends State<_ItemsEditor> {
             }
             return KeyEventResult.ignored;
           };
-          if (nameController.text != item.name) {
-            nameController.text = item.name;
-            nameController.selection = TextSelection.collapsed(offset: item.name.length);
-          }
           final scheme = Theme.of(context).colorScheme;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -669,6 +683,7 @@ class _ItemsEditorState extends State<_ItemsEditor> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextFormField(
+                        key: ValueKey('qty-$index-${item.hashCode}'),
                         initialValue: _formatQuantity(item.quantity),
                         focusNode: focus.qty,
                         decoration: const InputDecoration(labelText: 'Qty'),
@@ -688,6 +703,7 @@ class _ItemsEditorState extends State<_ItemsEditor> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextFormField(
+                        key: ValueKey('price-$index-${item.hashCode}'),
                         initialValue: item.price?.toString() ?? '',
                         focusNode: focus.price,
                         decoration: const InputDecoration(labelText: 'Price'),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../models/order_item.dart';
 
-class OrderTable extends StatelessWidget {
+class OrderTable extends StatefulWidget {
   const OrderTable({
     super.key,
     required this.orders,
@@ -23,7 +23,7 @@ class OrderTable extends StatelessWidget {
   final List<OrderModel> orders;
   final Future<void> Function(int, String)? onUpdateStatus;
   final Future<void> Function(int)? onDelete;
-  final Future<void> Function(OrderModel, int, String)? onItemStatus;
+  final Future<void> Function(OrderModel, int, String?)? onItemStatus;
   final Future<void> Function(OrderModel)? onEdit;
   final Future<void> Function(OrderModel, OrderItemModel)? onItemEdit;
   final bool showLogs;
@@ -33,6 +33,11 @@ class OrderTable extends StatelessWidget {
   final bool showPrices;
   final Future<void> Function(OrderModel)? onSendToErp;
 
+  @override
+  State<OrderTable> createState() => _OrderTableState();
+}
+
+class _OrderTableState extends State<OrderTable> {
   static const _allowedStatuses = [
     'pending',
     'in-progress',
@@ -41,9 +46,13 @@ class OrderTable extends StatelessWidget {
     'entered_erp'
   ];
 
+  final Set<int> _expandedLogs = {};
+
   @override
   Widget build(BuildContext context) {
-    if (orders.isEmpty) {
+    _expandedLogs.removeWhere((id) => widget.orders.every((o) => o.id != id));
+
+    if (widget.orders.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16),
         child: Center(child: Text('No orders yet')),
@@ -51,7 +60,7 @@ class OrderTable extends StatelessWidget {
     }
 
     return Column(
-      children: orders.map((order) => _orderCard(context, order)).toList(),
+      children: widget.orders.map((order) => _orderCard(context, order)).toList(),
     );
   }
 
@@ -122,35 +131,35 @@ class OrderTable extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (onSendToErp != null && order.status == 'completed')
+                    if (widget.onSendToErp != null && order.status == 'completed')
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilledButton.icon(
                           icon: const Icon(Icons.cloud_upload_outlined),
                           label: const Text('Send to ERP'),
-                          onPressed: () => onSendToErp!(order),
+                          onPressed: () => widget.onSendToErp!(order),
                         ),
                       ),
-                    if (onPrint != null)
+                    if (widget.onPrint != null)
                       IconButton(
                         icon: const Icon(Icons.print),
                         tooltip: 'Print',
-                        onPressed: () => onPrint!(order),
+                        onPressed: () => widget.onPrint!(order),
                       ),
-                    if (onEdit != null)
+                    if (widget.onEdit != null)
                       IconButton(
                         icon: const Icon(Icons.edit_outlined),
                         tooltip: 'Edit order',
-                        onPressed: () => onEdit!(order),
+                        onPressed: () => widget.onEdit!(order),
                       ),
-                    if (onUpdateStatus != null && inlineStatusButton)
+                    if (widget.onUpdateStatus != null && widget.inlineStatusButton)
                       _statusStepperButton(context, order)
-                    else if (onUpdateStatus != null)
+                    else if (widget.onUpdateStatus != null)
                       PopupMenuButton<String>(
                         onSelected: (s) async {
-                          final next = statusGuard != null ? await statusGuard!(order, s) : s;
+                          final next = widget.statusGuard != null ? await widget.statusGuard!(order, s) : s;
                           if (next != null) {
-                            await onUpdateStatus!(order.id, next);
+                            await widget.onUpdateStatus!(order.id, next);
                           }
                         },
                         itemBuilder: (_) => _allowedStatuses
@@ -161,10 +170,10 @@ class OrderTable extends StatelessWidget {
                             .toList(),
                         child: const Icon(Icons.more_vert),
                       ),
-                    if (onDelete != null)
+                    if (widget.onDelete != null)
                       IconButton(
                         icon: const Icon(Icons.delete_outline),
-                        onPressed: () => onDelete!(order.id),
+                        onPressed: () => widget.onDelete!(order.id),
                       ),
                   ],
                 )
@@ -172,28 +181,9 @@ class OrderTable extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _itemsTable(context, order),
-            if (showLogs && order.history.isNotEmpty) ...[
+            if (widget.showLogs && order.history.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text('Order log', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 6),
-              Column(
-                children: order.history
-                    .map(
-                      (log) => ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.history, size: 18),
-                        title: Text(
-                            '${log.editorName ?? 'Unknown'} • ${_formatDate(log.createdAt)}'),
-                        subtitle: Text(
-                          '${log.previousDescription} → ${log.newDescription}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-              )
+              _logsSection(context, order),
             ],
           ],
         ),
@@ -208,8 +198,8 @@ class OrderTable extends StatelessWidget {
       0: const FixedColumnWidth(30),
       1: const FlexColumnWidth(),
       2: const FixedColumnWidth(60),
-      if (showPrices) 3: const FixedColumnWidth(80),
-      (showPrices ? 4 : 3): const FixedColumnWidth(100),
+      if (widget.showPrices) 3: const FixedColumnWidth(80),
+      (widget.showPrices ? 4 : 3): const FixedColumnWidth(140),
     };
 
     return Table(
@@ -231,7 +221,7 @@ class OrderTable extends StatelessWidget {
                 child: Text('Qty',
                     textAlign: TextAlign.right,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600))),
-            if (showPrices)
+            if (widget.showPrices)
               Padding(
                   padding: const EdgeInsets.all(6),
                   child: Text('Price',
@@ -255,7 +245,7 @@ class OrderTable extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(6),
                 child: GestureDetector(
-                  onLongPress: onItemEdit == null ? null : () => onItemEdit!(order, item),
+                  onLongPress: widget.onItemEdit == null ? null : () => widget.onItemEdit!(order, item),
                   child: Text(
                     item.name,
                     style: TextStyle(
@@ -270,11 +260,11 @@ class OrderTable extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(6),
                 child: GestureDetector(
-                  onLongPress: onItemEdit == null ? null : () => onItemEdit!(order, item),
+                  onLongPress: widget.onItemEdit == null ? null : () => widget.onItemEdit!(order, item),
                   child: Text(_formatQuantity(item.quantity), textAlign: TextAlign.right),
                 ),
               ),
-              if (showPrices)
+              if (widget.showPrices)
                 Padding(
                   padding: const EdgeInsets.all(6),
                   child: Text(item.price != null ? '${item.price}' : '-', textAlign: TextAlign.right),
@@ -291,7 +281,7 @@ class OrderTable extends StatelessWidget {
   }
 
   Widget _itemStatusCell(BuildContext context, OrderModel order, OrderItemModel item) {
-    if (onItemStatus == null) {
+    if (widget.onItemStatus == null) {
       final scheme = Theme.of(context).colorScheme;
       final icon = item.status == 'collected'
           ? Icon(Icons.check, color: scheme.primary)
@@ -308,7 +298,7 @@ class OrderTable extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           icon: Icon(Icons.check_circle, color: scheme.primary),
           onPressed: () async {
-            await onItemStatus!(order, item.id, 'collected');
+            await widget.onItemStatus!(order, item.id, 'collected');
             // Immediately rebuild so maker/taker sees the highlight
             (context as Element).markNeedsBuild();
           },
@@ -317,7 +307,15 @@ class OrderTable extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           icon: Icon(Icons.cancel, color: scheme.error),
           onPressed: () async {
-            await onItemStatus!(order, item.id, 'unavailable');
+            await widget.onItemStatus!(order, item.id, 'unavailable');
+            (context as Element).markNeedsBuild();
+          },
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          icon: Icon(Icons.radio_button_unchecked, color: scheme.outline),
+          onPressed: () async {
+            await widget.onItemStatus!(order, item.id, null);
             (context as Element).markNeedsBuild();
           },
         ),
@@ -363,9 +361,9 @@ class OrderTable extends StatelessWidget {
         onPressed: () async {
           final next = _nextStatus(order.status);
           if (next == null) return;
-          final guarded = statusGuard != null ? await statusGuard!(order, next) : next;
+          final guarded = widget.statusGuard != null ? await widget.statusGuard!(order, next) : next;
           if (guarded != null) {
-            await onUpdateStatus!(order.id, guarded);
+            await widget.onUpdateStatus!(order.id, guarded);
           }
         },
         child: Text(label),
@@ -397,8 +395,61 @@ class OrderTable extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     final local = dt.toLocal();
-    final date = '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+    final date =
+        '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
     final time = '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
     return '$date $time';
+  }
+
+  bool _isLogExpanded(int orderId) => _expandedLogs.contains(orderId);
+
+  void _toggleLog(int orderId) {
+    setState(() {
+      if (_expandedLogs.contains(orderId)) {
+        _expandedLogs.remove(orderId);
+      } else {
+        _expandedLogs.add(orderId);
+      }
+    });
+  }
+
+  Widget _logsSection(BuildContext context, OrderModel order) {
+    final expanded = _isLogExpanded(order.id);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Order log', style: Theme.of(context).textTheme.titleSmall),
+            TextButton.icon(
+              icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+              label: Text(expanded ? 'Hide log' : 'Show log'),
+              onPressed: () => _toggleLog(order.id),
+            ),
+          ],
+        ),
+        if (expanded) ...[
+          const SizedBox(height: 6),
+          Column(
+            children: order.history
+                .map(
+                  (log) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.history, size: 18),
+                    title: Text('${log.editorName ?? 'Unknown'} • ${_formatDate(log.createdAt)}'),
+                    subtitle: Text(
+                      '${log.previousDescription} → ${log.newDescription}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+          )
+        ],
+      ],
+    );
   }
 }

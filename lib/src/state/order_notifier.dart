@@ -15,6 +15,7 @@ class OrderNotifier extends ChangeNotifier {
   String statusFilter = 'active';
   String searchTerm = '';
   final List<String> _productCache = [];
+  String? _role;
 
   Future<void> loadOrders({String? status, String? search}) async {
     loading = true;
@@ -23,10 +24,16 @@ class OrderNotifier extends ChangeNotifier {
     try {
       statusFilter = status ?? statusFilter;
       searchTerm = search ?? searchTerm;
-      orders = await _service.fetchOrders(
-        status: statusFilter == 'all' ? null : statusFilter,
-        search: searchTerm,
-      );
+      final normalizedStatus = statusFilter == 'all' ? null : statusFilter;
+      orders = _role == 'accounter'
+          ? await _service.fetchAccounterOrders(
+              status: normalizedStatus,
+              search: searchTerm,
+            )
+          : await _service.fetchOrders(
+              status: normalizedStatus,
+              search: searchTerm,
+            );
     } catch (e) {
       error = '$e';
     } finally {
@@ -83,7 +90,7 @@ class OrderNotifier extends ChangeNotifier {
   Future<void> updateItemStatus(
     OrderModel order,
     int itemId,
-    String status, {
+    String? status, {
     bool? notifyMaker,
     bool? notifyAccounter,
     bool? skipEmail,
@@ -124,6 +131,7 @@ class OrderNotifier extends ChangeNotifier {
   }
 
   void handleAuthChanged(AuthNotifier auth) {
+    _role = auth.user?.role;
     if (!auth.isAuthenticated) {
       orders = [];
       _productCache.clear();

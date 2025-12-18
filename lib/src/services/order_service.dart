@@ -32,6 +32,30 @@ class OrderService {
     throw Exception('Unable to fetch orders: ${data is Map ? data['error'] : response.body}');
   }
 
+  Future<List<OrderModel>> fetchAccounterOrders({
+    String? status,
+    String? search,
+    int? limit,
+    int? offset,
+    bool includeHistory = true,
+  }) async {
+    final query = <String, String>{};
+    if (status != null && status.isNotEmpty) query['status'] = status;
+    if (search != null && search.isNotEmpty) query['search'] = search;
+    if (limit != null) query['limit'] = '$limit';
+    if (offset != null) query['offset'] = '$offset';
+    query['includeHistory'] = includeHistory ? 'true' : 'false';
+
+    final response = await _client.get('/api/orders/accounter', query: query.isEmpty ? null : query);
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final list = (data is List ? data : (data['orders'] as List<dynamic>?)) ?? [];
+      return list.map((raw) => OrderModel.fromJson(raw as Map<String, dynamic>)).toList();
+    }
+    throw Exception('Unable to fetch accounter orders: ${data is Map ? data['error'] : response.body}');
+  }
+
   Future<OrderModel> createOrder(OrderDraft draft) async {
     final response = await _client.post('/api/orders', body: draft.toJson());
     try {

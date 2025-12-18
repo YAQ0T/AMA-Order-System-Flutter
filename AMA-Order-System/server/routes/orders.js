@@ -375,6 +375,73 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
+// Accounter Orders (Completed + Entered ERP)
+router.get('/accounter', authenticateToken, async (req, res) => {
+    try {
+        if (!['accounter', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Only accounters or admins can view ERP-entered orders' });
+        }
+
+        const limit = Math.min(parseInt(req.query.limit, 10) || 20, 20);
+        const offset = parseInt(req.query.offset, 10) || 0;
+        const includeHistory = req.query.includeHistory !== 'false';
+        const search = (req.query.search || '').trim();
+        const requestedStatus = req.query.status;
+        const allowedStatuses = ['completed', 'entered_erp'];
+
+        const statusFilter = allowedStatuses.includes(requestedStatus)
+            ? requestedStatus
+            : { [Op.in]: allowedStatuses };
+
+        const where = { status: statusFilter };
+
+        if (req.query.city) {
+            where.city = req.query.city;
+        }
+
+        if (search) {
+            where[Op.or] = [
+                { title: { [Op.iLike]: `%${search}%` } },
+                { description: { [Op.iLike]: `%${search}%` } },
+                { city: { [Op.iLike]: `%${search}%` } }
+            ];
+        }
+
+        // Admins can optionally inspect another accounter's orders
+        let accounterId = req.user.id;
+        if (req.user.role === 'admin' && req.query.accounterId) {
+            const parsedId = parseInt(req.query.accounterId, 10);
+            if (!Number.isNaN(parsedId)) {
+                accounterId = parsedId;
+            }
+        }
+        where.accounterId = accounterId;
+
+        const includeOptions = buildOrderIncludes(req.user.role, { includeHistory });
+
+        const result = await Order.findAndCountAll({
+            where,
+            include: includeOptions,
+            order: [['createdAt', 'DESC']],
+            limit,
+            offset,
+            distinct: true
+        });
+
+        res.json({
+            orders: result.rows,
+            pagination: {
+                total: result.count,
+                limit,
+                offset
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching accounter orders:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Update Order Status, Title, Description, Items, Assigned Takers
 router.put('/:id', authenticateToken, async (req, res) => {
     let transaction;
@@ -386,6 +453,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         if (skipEmail) {
             console.log('⏭️ Skipping individual email (bulk send mode)');
+        }
+
+        // Track which incoming items explicitly included a status field (even if null)
+        const statusProvidedByName = new Map();
+        if (Array.isArray(items)) {
+            for (const rawItem of items) {
+                const rawName = (rawItem.name || '').trim();
+                if (!rawName) continue;
+                statusProvidedByName.set(rawName.toLowerCase(), Object.prototype.hasOwnProperty.call(rawItem, 'status'));
+            }
         }
 
         const sanitizedItems = Array.isArray(items) ? sanitizeItems(items) : null;
@@ -581,7 +658,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 for (const item of newItems) {
                     const previouslyExisting = isUpdate.get(item.name);
                     const previousStatus = previouslyExisting ? (existingItemsStatus.get(item.name) ?? null) : null;
-                    const nextStatus = item.status ?? previousStatus;
+                    const statusProvided = statusProvidedByName.get(item.name.toLowerCase()) ?? false;
+                    const nextStatus = (previouslyExisting && !statusProvided)
+                        ? previousStatus
+                        : (item.status ?? null);
 
                     // Log status changes for existing items
                     if (previouslyExisting && previousStatus !== nextStatus) {
