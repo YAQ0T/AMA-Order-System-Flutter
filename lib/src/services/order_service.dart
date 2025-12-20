@@ -14,25 +14,57 @@ class OrderService {
     int? limit,
     int? offset,
     bool includeHistory = true,
-  }) async {
-    final query = <String, String>{};
-    if (status != null && status.isNotEmpty) query['status'] = status;
-    if (search != null && search.isNotEmpty) query['search'] = search;
-    if (limit != null) query['limit'] = '$limit';
-    if (offset != null) query['offset'] = '$offset';
-    query['includeHistory'] = includeHistory ? 'true' : 'false';
-
-    final response = await _client.get('/api/orders', query: query.isEmpty ? null : query);
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final list = (data is List ? data : (data['orders'] as List<dynamic>?)) ?? [];
-      return list.map((raw) => OrderModel.fromJson(raw as Map<String, dynamic>)).toList();
-    }
-    throw Exception('Unable to fetch orders: ${data is Map ? data['error'] : response.body}');
+  }) {
+    return _fetchList('/api/orders',
+        status: status, search: search, limit: limit, offset: offset, includeHistory: includeHistory);
   }
 
   Future<List<OrderModel>> fetchAccounterOrders({
+    String? status,
+    String? search,
+    int? limit,
+    int? offset,
+    bool includeHistory = true,
+  }) {
+    return _fetchList('/api/orders/accounter',
+        status: status, search: search, limit: limit, offset: offset, includeHistory: includeHistory);
+  }
+
+  Future<List<OrderModel>> fetchMakerOrders({
+    String? status,
+    String? search,
+    int? limit,
+    int? offset,
+    bool includeHistory = true,
+  }) {
+    return _fetchList('/api/orders/maker',
+        status: status, search: search, limit: limit, offset: offset, includeHistory: includeHistory);
+  }
+
+  Future<List<OrderModel>> fetchTakerOrders({
+    String? status,
+    String? search,
+    int? limit,
+    int? offset,
+    bool includeHistory = true,
+  }) {
+    return _fetchList('/api/orders/taker',
+        status: status, search: search, limit: limit, offset: offset, includeHistory: includeHistory);
+  }
+
+  Future<List<OrderModel>> fetchAdminOrders({
+    String? status,
+    String? search,
+    int? limit,
+    int? offset,
+    bool includeHistory = true,
+  }) {
+    return _fetchList('/api/orders/admin',
+        status: status, search: search, limit: limit, offset: offset, includeHistory: includeHistory);
+  }
+
+  Future<List<OrderModel>> _fetchList(
+    String path, {
     String? status,
     String? search,
     int? limit,
@@ -46,14 +78,14 @@ class OrderService {
     if (offset != null) query['offset'] = '$offset';
     query['includeHistory'] = includeHistory ? 'true' : 'false';
 
-    final response = await _client.get('/api/orders/accounter', query: query.isEmpty ? null : query);
+    final response = await _client.get(path, query: query.isEmpty ? null : query);
     final data = jsonDecode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final list = (data is List ? data : (data['orders'] as List<dynamic>?)) ?? [];
       return list.map((raw) => OrderModel.fromJson(raw as Map<String, dynamic>)).toList();
     }
-    throw Exception('Unable to fetch accounter orders: ${data is Map ? data['error'] : response.body}');
+    throw Exception('Unable to fetch orders: ${data is Map ? data['error'] : response.body}');
   }
 
   Future<OrderModel> createOrder(OrderDraft draft) async {

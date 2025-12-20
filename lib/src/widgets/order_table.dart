@@ -194,12 +194,15 @@ class _OrderTableState extends State<OrderTable> {
   Widget _itemsTable(BuildContext context, OrderModel order) {
     if (order.items.isEmpty) return const Text('No items');
     final scheme = Theme.of(context).colorScheme;
+    final hasItemActions = widget.onItemStatus != null || widget.onItemEdit != null;
+
     final columnWidths = <int, TableColumnWidth>{
       0: const FixedColumnWidth(30),
-      1: const FlexColumnWidth(),
-      2: const FixedColumnWidth(60),
-      if (widget.showPrices) 3: const FixedColumnWidth(80),
-      (widget.showPrices ? 4 : 3): const FixedColumnWidth(140),
+      1: hasItemActions ? const FlexColumnWidth(1) : const FlexColumnWidth(2),
+      2: FixedColumnWidth(hasItemActions ? 60 : 54),
+      if (widget.showPrices) 3: FixedColumnWidth(hasItemActions ? 80 : 68),
+      (widget.showPrices ? 4 : 3):
+          hasItemActions ? const FixedColumnWidth(140) : const FlexColumnWidth(1.2),
     };
 
     return Table(
@@ -229,7 +232,7 @@ class _OrderTableState extends State<OrderTable> {
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600))),
             Padding(
                 padding: const EdgeInsets.all(6),
-                child: Text('Status / Action',
+                child: Text(hasItemActions ? 'Status / Action' : 'Status',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600))),
           ],
@@ -254,6 +257,8 @@ class _OrderTableState extends State<OrderTable> {
                           ? scheme.onSurface.withValues(alpha: 0.65)
                           : scheme.onSurface,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),

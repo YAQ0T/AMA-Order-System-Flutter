@@ -25,15 +25,7 @@ class OrderNotifier extends ChangeNotifier {
       statusFilter = status ?? statusFilter;
       searchTerm = search ?? searchTerm;
       final normalizedStatus = statusFilter == 'all' ? null : statusFilter;
-      orders = _role == 'accounter'
-          ? await _service.fetchAccounterOrders(
-              status: normalizedStatus,
-              search: searchTerm,
-            )
-          : await _service.fetchOrders(
-              status: normalizedStatus,
-              search: searchTerm,
-            );
+      orders = await _fetchByRole(normalizedStatus);
     } catch (e) {
       error = '$e';
     } finally {
@@ -158,6 +150,21 @@ class OrderNotifier extends ChangeNotifier {
       return set.take(6).toList();
     } catch (_) {
       return localMatches.take(6).toList();
+    }
+  }
+
+  Future<List<OrderModel>> _fetchByRole(String? status) {
+    switch (_role) {
+      case 'accounter':
+        return _service.fetchAccounterOrders(status: status, search: searchTerm);
+      case 'maker':
+        return _service.fetchMakerOrders(status: status, search: searchTerm);
+      case 'taker':
+        return _service.fetchTakerOrders(status: status, search: searchTerm);
+      case 'admin':
+        return _service.fetchAdminOrders(status: status, search: searchTerm);
+      default:
+        return _service.fetchOrders(status: status, search: searchTerm);
     }
   }
 }

@@ -104,11 +104,19 @@ syncDatabase();
 // Routes
 const authRoutes = require('./routes/auth');
 const orderRoutes = require('./routes/orders');
+const orderMakerRoutes = require('./routes/orders_maker');
+const orderTakerRoutes = require('./routes/orders_taker');
+const orderAdminRoutes = require('./routes/orders_admin');
+const orderAccounterRoutes = require('./routes/orders_accounter');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/orders', orderMakerRoutes);
+app.use('/api/orders', orderTakerRoutes);
+app.use('/api/orders', orderAdminRoutes);
+app.use('/api/orders', orderAccounterRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/items', require('./routes/items'));
