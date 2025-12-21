@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -95,7 +97,7 @@ class _OverviewTab extends StatelessWidget {
         const SizedBox(height: 16),
         Text('Recent activity', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        ...stats.recentActivity.map(_activityTile),
+        ...stats.recentActivity.map((log) => _activityTile(context, log)),
       ],
     );
   }
@@ -119,12 +121,13 @@ class _OverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _activityTile(ActivityLog log) {
+  Widget _activityTile(BuildContext context, ActivityLog log) {
     return ListTile(
       dense: true,
-      title: Text(log.type),
-      subtitle: Text('${log.entityType} ${log.entityId ?? ''}'),
+      title: Text(log.actionLabel),
+      subtitle: Text(_logSubtitle(log)),
       trailing: Text(log.createdAt.toLocal().toString().split('.').first),
+      onTap: () => _showLogDetails(context, log),
     );
   }
 }
@@ -266,21 +269,22 @@ class _LogsTab extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         children: [
           Text('Recent logs', style: Theme.of(context).textTheme.titleMedium),
-          ...admin.logs.map(_tile),
+          ...admin.logs.map((log) => _tile(context, log)),
           const Divider(),
           Text('Audit logs', style: Theme.of(context).textTheme.titleMedium),
-          ...admin.auditLogs.map(_tile),
+          ...admin.auditLogs.map((log) => _tile(context, log)),
         ],
       ),
     );
   }
 
-  Widget _tile(ActivityLog log) {
+  Widget _tile(BuildContext context, ActivityLog log) {
     return ListTile(
       dense: true,
-      title: Text(log.type),
-      subtitle: Text('${log.entityType} ${log.entityId ?? ''} by ${log.user?.username ?? ''}'),
+      title: Text(log.actionLabel),
+      subtitle: Text(_logSubtitle(log)),
       trailing: Text(log.createdAt.toLocal().toString().split('.').first),
+      onTap: () => _showLogDetails(context, log),
     );
   }
 }
@@ -303,4 +307,83 @@ Future<bool> _confirmDeleteOrder(BuildContext context, OrderModel order) async {
     ),
   );
   return result == true;
+}
+
+String _logSubtitle(ActivityLog log) {
+  final target = log.targetLabel;
+  final user = log.user?.username;
+  final parts = <String>[];
+  if (target.isNotEmpty) parts.add(target);
+  if (user != null && user.isNotEmpty) parts.add('by $user');
+  if (parts.isEmpty) return 'System';
+  return parts.join(' ');
+}
+
+Future<void> _showLogDetails(BuildContext context, ActivityLog log) async {
+  final time = log.createdAt.toLocal().toString().split('.').first;
+  final userLabel = log.user == null
+      ? 'System'
+      : log.user!.role.isNotEmpty
+          ? '${log.user!.username} (${log.user!.role})'
+          : log.user!.username;
+  final targetLabel = log.targetLabel.isEmpty ? 'System' : log.targetLabel;
+  final detailsText = _formatLogDetails(log.details);
+
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(log.actionLabel),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailRow('User', userLabel),
+              _detailRow('Target', targetLabel),
+              _detailRow('Time', time),
+              if (log.category != null && log.category!.isNotEmpty)
+                _detailRow('Category', log.category!),
+              if (log.ipAddress != null && log.ipAddress!.isNotEmpty)
+                _detailRow('IP', log.ipAddress!),
+              if (log.description != null && log.description!.isNotEmpty)
+                _detailRow('Description', log.description!),
+              const SizedBox(height: 12),
+              Text('Details', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 6),
+              SelectableText(
+                detailsText,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _detailRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(value),
+      ],
+    ),
+  );
+}
+
+String _formatLogDetails(Map<String, dynamic>? details) {
+  if (details == null || details.isEmpty) return 'No details';
+  const encoder = JsonEncoder.withIndent('  ');
+  return encoder.convert(details);
 }

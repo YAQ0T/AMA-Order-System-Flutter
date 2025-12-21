@@ -28,6 +28,11 @@ module.exports = (sequelize) => {
                 isEmail: true
             }
         },
+        prefersDark: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
+        },
         approvedBy: {
             type: DataTypes.INTEGER,
             allowNull: true,

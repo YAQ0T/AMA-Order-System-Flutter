@@ -19,11 +19,11 @@ class _OrderFormState extends State<OrderForm> {
   GlobalKey<_ItemsEditorState> _itemsEditorKey = GlobalKey<_ItemsEditorState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _cityController = TextEditingController(text: 'نابلس');
+  final _cityController = TextEditingController();
   final _titleFocus = FocusNode();
   final _descriptionFocus = FocusNode();
   final _cityFocus = FocusNode();
-  String _city = 'نابلس';
+  String _city = '';
   List<OrderItemInput> _items = [OrderItemInput()];
   final Set<int> _selectedTakers = {};
   int? _accounterId;
@@ -75,8 +75,8 @@ class _OrderFormState extends State<OrderForm> {
         _itemsEditorKey = GlobalKey<_ItemsEditorState>();
         _titleController.clear();
         _descriptionController.clear();
-        _cityController.text = 'نابلس';
-        _city = 'نابلس';
+        _cityController.clear();
+        _city = '';
         _items = [OrderItemInput()];
         _selectedTakers.clear();
         _accounterId = null;
@@ -91,12 +91,14 @@ class _OrderFormState extends State<OrderForm> {
   Future<void> _submit(OrderNotifier orders) async {
     if (!_formKey.currentState!.validate()) return;
 
+    final selectedCity = _CityField.matchCity(_cityController.text) ?? _city;
+    if (selectedCity.trim().isEmpty) return;
     final draft = OrderDraft(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
-      city: _city,
+      city: selectedCity,
       items: _items,
       assignedTakerIds: _selectedTakers.toList(),
       accounterId: _accounterId,
@@ -173,12 +175,7 @@ class _OrderFormState extends State<OrderForm> {
                   _CityField(
                     focusNode: _cityFocus,
                     controller: _cityController,
-                    initialValue: _city,
                     onSelected: (value) {
-                      setState(() => _city = value);
-                      _itemsEditorKey.currentState?.focusFirstName();
-                    },
-                    onSubmitted: (value) {
                       setState(() => _city = value);
                       _itemsEditorKey.currentState?.focusFirstName();
                     },
@@ -294,16 +291,12 @@ class _CityField extends StatelessWidget {
   const _CityField({
     required this.focusNode,
     required this.controller,
-    required this.initialValue,
     required this.onSelected,
-    required this.onSubmitted,
   });
 
   final FocusNode focusNode;
   final TextEditingController controller;
-  final String initialValue;
   final ValueChanged<String> onSelected;
-  final ValueChanged<String> onSubmitted;
 
   static const _cities = [
     'نابلس',
@@ -317,42 +310,55 @@ class _CityField extends StatelessWidget {
     'الداخل',
   ];
 
+  static String? matchCity(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final city in _cities) {
+      if (city.toLowerCase() == normalized) {
+        return city;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Autocomplete<String>(
-      initialValue: TextEditingValue(text: controller.text),
+      focusNode: focusNode,
+      textEditingController: controller,
       optionsBuilder: (TextEditingValue textEditingValue) {
         final input = textEditingValue.text.trim();
         if (input.isEmpty) {
           return _cities;
         }
         return _cities.where(
-          (c) => c.toLowerCase().startsWith(input.toLowerCase()),
+          (c) => c.toLowerCase().contains(input.toLowerCase()),
         );
       },
-      onSelected: (value) {
-        controller.text = value;
-        onSelected(value);
-      },
+      onSelected: onSelected,
       fieldViewBuilder: (context, textEditingController, fieldFocus, onFieldSubmitted) {
-        if (textEditingController.text != controller.text) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (textEditingController.text == controller.text) return;
-            textEditingController.value = controller.value;
-          });
-        }
         return TextFormField(
           controller: textEditingController,
-          focusNode: focusNode,
-          decoration: const InputDecoration(labelText: 'City'),
+          focusNode: fieldFocus,
+          decoration: const InputDecoration(
+            labelText: 'City',
+            suffixIcon: Icon(Icons.arrow_drop_down),
+          ),
           textInputAction: TextInputAction.next,
+          validator: (value) {
+            final match = matchCity(value ?? '');
+            if (match == null) {
+              return 'Select a city from the list';
+            }
+            return null;
+          },
           onFieldSubmitted: (value) {
-            controller.text = value;
-            onSubmitted(value.trim().isEmpty ? initialValue : value.trim());
+            onFieldSubmitted();
           },
         );
       },
       optionsViewBuilder: (context, onSelected, options) {
+        final highlightIndex = AutocompleteHighlightedOption.of(context);
         return Align(
           alignment: Alignment.topLeft,
           child: Material(
@@ -363,7 +369,10 @@ class _CityField extends StatelessWidget {
               itemCount: options.length,
               itemBuilder: (context, index) {
                 final option = options.elementAt(index);
+                final isHighlighted = index == highlightIndex;
                 return ListTile(
+                  selected: isHighlighted,
+                  selectedTileColor: Theme.of(context).focusColor,
                   title: Text(option),
                   onTap: () => onSelected(option),
                 );

@@ -71,7 +71,8 @@ router.post('/login', async (req, res) => {
                 id: user.id,
                 username: user.username,
                 role: user.role,
-                isApproved: user.isApproved
+                isApproved: user.isApproved,
+                prefersDark: user.prefersDark
             }
         });
     } catch (error) {
@@ -83,7 +84,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
     try {
         const user = await User.findByPk(req.user.id, {
-            attributes: ['id', 'username', 'role', 'isApproved']
+            attributes: ['id', 'username', 'role', 'isApproved', 'prefersDark']
         });
 
         if (!user) {
@@ -91,6 +92,38 @@ router.get('/me', authenticateToken, async (req, res) => {
         }
 
         res.json({ user });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update user theme preference
+router.put('/theme', authenticateToken, async (req, res) => {
+    try {
+        const { prefersDark } = req.body;
+        if (typeof prefersDark !== 'boolean') {
+            return res.status(400).json({ error: 'prefersDark must be a boolean' });
+        }
+
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        user.prefersDark = prefersDark;
+        await user.save();
+
+        await logActivity(user.id, 'user_theme_updated', 'user', user.id, { prefersDark }, req.ip);
+
+        res.json({
+            user: {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                isApproved: user.isApproved,
+                prefersDark: user.prefersDark
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

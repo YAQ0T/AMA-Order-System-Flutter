@@ -54,6 +54,17 @@ class AuthService {
     throw AuthException(data['error'] as String? ?? 'Session expired');
   }
 
+  Future<AppUser> updateThemePreference(bool prefersDark) async {
+    final response = await _client.put('/api/auth/theme', body: {
+      'prefersDark': prefersDark,
+    });
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    }
+    throw AuthException(data['error'] as String? ?? 'Failed to update theme');
+  }
+
   Future<List<AppUser>> fetchTakers() async {
     final response = await _client.get('/api/auth/takers');
     if (response.statusCode >= 200 && response.statusCode < 300) {

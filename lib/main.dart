@@ -67,103 +67,16 @@ class AMAOrderApp extends StatelessWidget {
       ],
       child: Consumer<AuthNotifier>(
         builder: (context, auth, _) {
-          final baseScheme = ColorScheme.fromSeed(
-            seedColor: const Color(0xFF2F7A72),
-            brightness: Brightness.light,
-          );
-          const surfaceBase = Color(0xFFF4F6F5);
-          final surfaceContainer = const Color(0xFFE7EFEE);
-          final scheme = baseScheme.copyWith(
-            surface: Colors.white,
-            surfaceContainerHighest: surfaceContainer,
-            surfaceContainerHigh: surfaceContainer,
-            surfaceContainer: surfaceContainer,
-            secondary: const Color(0xFF597D78),
-            secondaryContainer: const Color(0xFFD8E7E4),
-            tertiary: const Color(0xFF6E8FB6),
-            tertiaryContainer: const Color(0xFFDDE7F3),
-          );
-
-          final boldTextTheme =
-              _boldTextTheme(ThemeData(colorScheme: scheme, useMaterial3: true).textTheme);
+          final lightTheme = _buildTheme(Brightness.light);
+          final darkTheme = _buildTheme(Brightness.dark);
+          final themeMode = auth.prefersDark ? ThemeMode.dark : ThemeMode.light;
 
           return MaterialApp(
             title: 'AMA Order System',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorScheme: scheme,
-              useMaterial3: true,
-              textTheme: boldTextTheme,
-              primaryTextTheme: boldTextTheme.apply(
-                bodyColor: scheme.onPrimary,
-                displayColor: scheme.onPrimary,
-              ),
-              scaffoldBackgroundColor: surfaceBase,
-              appBarTheme: AppBarTheme(
-                centerTitle: true,
-                backgroundColor: scheme.surface,
-                foregroundColor: scheme.onSurface,
-                elevation: 0,
-                titleTextStyle: boldTextTheme.titleLarge?.copyWith(color: scheme.onSurface),
-                toolbarTextStyle: boldTextTheme.bodyMedium?.copyWith(color: scheme.onSurface),
-              ),
-              cardTheme: CardThemeData(
-                color: scheme.surface,
-                elevation: 1.5,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              inputDecorationTheme: InputDecorationTheme(
-                filled: true,
-                fillColor: scheme.surfaceContainerHighest,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: scheme.outlineVariant),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: scheme.outlineVariant),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: scheme.primary),
-                ),
-              ),
-              chipTheme: ChipThemeData(
-                backgroundColor: scheme.surfaceContainerHighest,
-                selectedColor: scheme.primaryContainer,
-                disabledColor: scheme.surfaceContainerHighest,
-                labelStyle: boldTextTheme.labelMedium?.copyWith(color: scheme.onSurface),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              filledButtonTheme: FilledButtonThemeData(
-                style: FilledButton.styleFrom(
-                  backgroundColor: scheme.primary,
-                  foregroundColor: scheme.onPrimary,
-                  textStyle: boldTextTheme.labelLarge,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: scheme.secondary,
-                  foregroundColor: scheme.onSecondary,
-                  textStyle: boldTextTheme.labelLarge,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              textButtonTheme: TextButtonThemeData(
-                style: TextButton.styleFrom(
-                  foregroundColor: scheme.primary,
-                  textStyle: boldTextTheme.labelLarge,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              dividerColor: scheme.outlineVariant,
-            ),
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            themeMode: themeMode,
             home: _homeFor(auth),
             routes: {
               SignupPage.routeName: (_) => const SignupPage(),
@@ -199,6 +112,104 @@ class AMAOrderApp extends StatelessWidget {
       labelLarge: bold(base.labelLarge),
       labelMedium: bold(base.labelMedium),
       labelSmall: bold(base.labelSmall),
+    );
+  }
+
+  ThemeData _buildTheme(Brightness brightness) {
+    final baseScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF2F7A72),
+      brightness: brightness,
+    );
+    final isDark = brightness == Brightness.dark;
+    final surfaceBase = isDark ? const Color(0xFF0F1413) : const Color(0xFFF4F6F5);
+    final surfaceContainer = isDark ? const Color(0xFF1A2422) : const Color(0xFFE7EFEE);
+    final scheme = baseScheme.copyWith(
+      surface: isDark ? const Color(0xFF111917) : Colors.white,
+      surfaceContainerHighest: surfaceContainer,
+      surfaceContainerHigh: surfaceContainer,
+      surfaceContainer: surfaceContainer,
+      secondary: isDark ? baseScheme.secondary : const Color(0xFF597D78),
+      secondaryContainer: isDark ? baseScheme.secondaryContainer : const Color(0xFFD8E7E4),
+      tertiary: isDark ? baseScheme.tertiary : const Color(0xFF6E8FB6),
+      tertiaryContainer: isDark ? baseScheme.tertiaryContainer : const Color(0xFFDDE7F3),
+    );
+
+    final boldTextTheme =
+        _boldTextTheme(ThemeData(colorScheme: scheme, useMaterial3: true).textTheme);
+
+    return ThemeData(
+      colorScheme: scheme,
+      useMaterial3: true,
+      textTheme: boldTextTheme,
+      primaryTextTheme: boldTextTheme.apply(
+        bodyColor: scheme.onPrimary,
+        displayColor: scheme.onPrimary,
+      ),
+      scaffoldBackgroundColor: surfaceBase,
+      appBarTheme: AppBarTheme(
+        centerTitle: true,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
+        titleTextStyle: boldTextTheme.titleLarge?.copyWith(color: scheme.onSurface),
+        toolbarTextStyle: boldTextTheme.bodyMedium?.copyWith(color: scheme.onSurface),
+      ),
+      cardTheme: CardThemeData(
+        color: scheme.surface,
+        elevation: 1.5,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.primary),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: scheme.surfaceContainerHighest,
+        selectedColor: scheme.primaryContainer,
+        disabledColor: scheme.surfaceContainerHighest,
+        labelStyle: boldTextTheme.labelMedium?.copyWith(color: scheme.onSurface),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
+          textStyle: boldTextTheme.labelLarge,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: scheme.secondary,
+          foregroundColor: scheme.onSecondary,
+          textStyle: boldTextTheme.labelLarge,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: scheme.primary,
+          textStyle: boldTextTheme.labelLarge,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+      dividerColor: scheme.outlineVariant,
     );
   }
 }

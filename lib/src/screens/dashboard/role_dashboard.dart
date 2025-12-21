@@ -16,7 +16,7 @@ class RoleDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthNotifier>();
+    final auth = context.watch<AuthNotifier>();
     final orders = context.read<OrderNotifier>();
 
     return Scaffold(
@@ -27,6 +27,16 @@ class RoleDashboard extends StatelessWidget {
             onPressed: () => orders.loadOrders(),
             icon: const Icon(Icons.refresh),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Tooltip(
+              message: 'Dark mode',
+              child: Switch.adaptive(
+                value: auth.prefersDark,
+                onChanged: (value) => _toggleTheme(context, auth, value),
+              ),
+            ),
+          ),
           IconButton(
             onPressed: () => auth.logout(),
             icon: const Icon(Icons.logout),
@@ -35,6 +45,17 @@ class RoleDashboard extends StatelessWidget {
       ),
       body: _bodyForRole(user),
     );
+  }
+
+  Future<void> _toggleTheme(BuildContext context, AuthNotifier auth, bool prefersDark) async {
+    try {
+      await auth.setThemePreference(prefersDark);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    }
   }
 
   Widget _bodyForRole(AppUser user) {
