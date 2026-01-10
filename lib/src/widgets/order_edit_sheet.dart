@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/order.dart';
 import '../models/user.dart';
 import '../state/auth_notifier.dart';
+import 'city_selector.dart';
 
 /// Bottom sheet that lets makers edit their own orders.
 class OrderEditSheet extends StatefulWidget {
@@ -19,7 +21,7 @@ class OrderEditSheet extends StatefulWidget {
 class _OrderEditSheetState extends State<OrderEditSheet> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _descCtrl;
-  late final TextEditingController _cityCtrl;
+  String? _selectedCity;
   late String _status;
   late List<OrderItemInput> _items;
   late Future<List<AppUser>> _takersFuture;
@@ -41,7 +43,7 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.order.title ?? '');
     _descCtrl = TextEditingController(text: widget.order.description ?? '');
-    _cityCtrl = TextEditingController(text: widget.order.city ?? '');
+    _selectedCity = widget.order.city ?? '';
     _status = widget.order.status;
     _items = widget.order.items
         .map((i) => OrderItemInput(name: i.name, quantity: i.quantity, price: i.price))
@@ -60,7 +62,6 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
   void dispose() {
     _titleCtrl.dispose();
     _descCtrl.dispose();
-    _cityCtrl.dispose();
     super.dispose();
   }
 
@@ -73,16 +74,37 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
       );
       return;
     }
+    final selectedCity = (_selectedCity ?? '').trim();
+    if (selectedCity.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a city')),
+      );
+      return;
+    }
+    final isUnarchiving = widget.order.status == 'archived' && _status != 'archived';
+    if (isUnarchiving && _selectedTakers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one taker before activating')),
+      );
+      return;
+    }
+    if (isUnarchiving && _accounterId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select an accounter before activating')),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
+    final isArchiving = _status == 'archived';
     final payload = {
       'title': _titleCtrl.text.trim(),
       'description': _descCtrl.text.trim(),
-      'city': _cityCtrl.text.trim(),
+      'city': selectedCity,
       'status': _status,
       'items': _items.map((e) => e.toJson()).toList(),
-      'assignedTakerIds': _selectedTakers.toList(),
-      'accounterId': _accounterId,
+      'assignedTakerIds': isArchiving ? const <int>[] : _selectedTakers.toList(),
+      'accounterId': isArchiving ? null : _accounterId,
     };
 
     try {
@@ -153,7 +175,7 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
               const SizedBox(height: 12),
               TextField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title'),
+                decoration: const InputDecoration(labelText: 'Customer name'),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -162,9 +184,9 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
                 maxLines: 3,
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: _cityCtrl,
-                decoration: const InputDecoration(labelText: 'City'),
+              CitySelector(
+                value: _selectedCity,
+                onChanged: (value) => setState(() => _selectedCity = value),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
@@ -174,7 +196,14 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
                     .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
                 onChanged: (value) {
-                  if (value != null) setState(() => _status = value);
+                  if (value == null) return;
+                  setState(() {
+                    _status = value;
+                    if (value == 'archived') {
+                      _selectedTakers.clear();
+                      _accounterId = null;
+                    }
+                  });
                 },
               ),
               const SizedBox(height: 16),
@@ -300,6 +329,9 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
                 initialValue: _formatQuantity(item.quantity),
                 decoration: const InputDecoration(labelText: 'Qty'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^(\d+\.?\d*|\.\d+)?$')),
+                ],
                 onChanged: (v) {
                   final normalized = _normalizeDigits(v);
                   final parsed = double.tryParse(normalized);
@@ -314,6 +346,9 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
                 initialValue: item.price != null ? '${item.price}' : '',
                 decoration: const InputDecoration(labelText: 'Price'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^(\d+\.?\d*|\.\d+)?$')),
+                ],
                 onChanged: (v) => item.price = double.tryParse(_normalizeDigits(v)),
               ),
             ),

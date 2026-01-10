@@ -6,6 +6,7 @@ import '../models/order.dart';
 import '../models/user.dart';
 import '../state/auth_notifier.dart';
 import '../state/order_notifier.dart';
+import 'city_selector.dart';
 
 class OrderForm extends StatefulWidget {
   const OrderForm({super.key});
@@ -19,15 +20,12 @@ class _OrderFormState extends State<OrderForm> {
   GlobalKey<_ItemsEditorState> _itemsEditorKey = GlobalKey<_ItemsEditorState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _cityController = TextEditingController();
   final _titleFocus = FocusNode();
   final _descriptionFocus = FocusNode();
-  final _cityFocus = FocusNode();
-  String _city = '';
+  String? _city;
   List<OrderItemInput> _items = [OrderItemInput()];
   final Set<int> _selectedTakers = {};
   int? _accounterId;
-  bool _archive = false;
 
   late Future<List<AppUser>> _takersFuture;
   late Future<List<AppUser>> _accountersFuture;
@@ -44,10 +42,8 @@ class _OrderFormState extends State<OrderForm> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _cityController.dispose();
     _titleFocus.dispose();
     _descriptionFocus.dispose();
-    _cityFocus.dispose();
     super.dispose();
   }
 
@@ -75,12 +71,10 @@ class _OrderFormState extends State<OrderForm> {
         _itemsEditorKey = GlobalKey<_ItemsEditorState>();
         _titleController.clear();
         _descriptionController.clear();
-        _cityController.clear();
-        _city = '';
+        _city = null;
         _items = [OrderItemInput()];
         _selectedTakers.clear();
         _accounterId = null;
-        _archive = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((__) {
         _itemsEditorKey.currentState?.focusFirstName();
@@ -88,11 +82,26 @@ class _OrderFormState extends State<OrderForm> {
     });
   }
 
-  Future<void> _submit(OrderNotifier orders) async {
+  Future<void> _submit(OrderNotifier orders, {required bool archive}) async {
     if (!_formKey.currentState!.validate()) return;
 
-    final selectedCity = _CityField.matchCity(_cityController.text) ?? _city;
-    if (selectedCity.trim().isEmpty) return;
+    if (!archive) {
+      if (_selectedTakers.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select at least one taker for active orders')),
+        );
+        return;
+      }
+      if (_accounterId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select an accounter for active orders')),
+        );
+        return;
+      }
+    }
+
+    final selectedCity = _city?.trim() ?? '';
+    if (selectedCity.isEmpty) return;
     final draft = OrderDraft(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim().isEmpty
@@ -100,9 +109,9 @@ class _OrderFormState extends State<OrderForm> {
           : _descriptionController.text.trim(),
       city: selectedCity,
       items: _items,
-      assignedTakerIds: _selectedTakers.toList(),
-      accounterId: _accounterId,
-      status: _archive ? 'archived' : null,
+      assignedTakerIds: archive ? const [] : _selectedTakers.toList(),
+      accounterId: archive ? null : _accounterId,
+      status: archive ? 'archived' : null,
     );
     try {
       await orders.createOrder(draft);
@@ -129,11 +138,9 @@ class _OrderFormState extends State<OrderForm> {
       child: CallbackShortcuts(
         bindings: {
           const SingleActivator(LogicalKeyboardKey.f3):
-              () => setState(() => _archive = !_archive),
+              () => _submit(context.read<OrderNotifier>(), archive: true),
           const SingleActivator(LogicalKeyboardKey.enter, control: true):
-              () => _formKey.currentState?.validate() == true
-                  ? _submit(context.read<OrderNotifier>())
-                  : null,
+              () => _submit(context.read<OrderNotifier>(), archive: false),
         },
         child: Focus(
           autofocus: true,
@@ -149,7 +156,7 @@ class _OrderFormState extends State<OrderForm> {
                   TextFormField(
                     controller: _titleController,
                     focusNode: _titleFocus,
-                    decoration: const InputDecoration(labelText: 'Title'),
+                    decoration: const InputDecoration(labelText: 'Customer name'),
                     textInputAction: TextInputAction.next,
                     onFieldSubmitted: (_) =>
                         FocusScope.of(context).requestFocus(_descriptionFocus),
@@ -160,24 +167,29 @@ class _OrderFormState extends State<OrderForm> {
                     decoration: const InputDecoration(labelText: 'Description'),
                     focusNode: _descriptionFocus,
                     textInputAction: TextInputAction.next,
-                    onFieldSubmitted: (_) => _cityFocus.requestFocus(),
+                    onFieldSubmitted: (_) => _itemsEditorKey.currentState?.focusFirstName(),
                     maxLines: 2,
                   ),
                   const SizedBox(height: 8),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Archive immediately'),
-                    subtitle: const Text('Create as archived to send later'),
-                    value: _archive,
-                    onChanged: (v) => setState(() => _archive = v),
-                  ),
-                  const SizedBox(height: 8),
-                  _CityField(
-                    focusNode: _cityFocus,
-                    controller: _cityController,
-                    onSelected: (value) {
-                      setState(() => _city = value);
-                      _itemsEditorKey.currentState?.focusFirstName();
+                  FormField<String>(
+                    initialValue: _city,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Select a city';
+                      }
+                      return null;
+                    },
+                    builder: (field) {
+                      return CitySelector(
+                        value: field.value,
+                        errorText: field.errorText,
+                        onChanged: (value) {
+                          field.didChange(value);
+                          field.validate();
+                          setState(() => _city = value);
+                          _itemsEditorKey.currentState?.focusFirstName();
+                        },
+                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -233,7 +245,7 @@ class _OrderFormState extends State<OrderForm> {
                         return const LinearProgressIndicator();
                       }
                       return DropdownButtonFormField<int?>(
-                        decoration: const InputDecoration(labelText: 'Accounter (optional)'),
+                        decoration: const InputDecoration(labelText: 'Accounter'),
                         initialValue: _accounterId,
                         items: [
                           const DropdownMenuItem<int?>(value: null, child: Text('None')),
@@ -249,15 +261,37 @@ class _OrderFormState extends State<OrderForm> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton(
-                      onPressed: orders.loading ? null : () => _submit(orders),
-                      child: orders.loading
-                          ? const SizedBox(
-                              height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Create order'),
-                    ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final buttonWidth = constraints.maxWidth * 0.4;
+                      final gapWidth = constraints.maxWidth * 0.1;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: buttonWidth,
+                            child: OutlinedButton(
+                              onPressed: orders.loading ? null : () => _submit(orders, archive: true),
+                              child: const Text('Create archived (F3)'),
+                            ),
+                          ),
+                          SizedBox(width: gapWidth),
+                          SizedBox(
+                            width: buttonWidth,
+                            child: FilledButton(
+                              onPressed: orders.loading ? null : () => _submit(orders, archive: false),
+                              child: orders.loading
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text('Create order'),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -287,115 +321,21 @@ class _ItemsEditor extends StatefulWidget {
   State<_ItemsEditor> createState() => _ItemsEditorState();
 }
 
-class _CityField extends StatelessWidget {
-  const _CityField({
-    required this.focusNode,
-    required this.controller,
-    required this.onSelected,
-  });
-
-  final FocusNode focusNode;
-  final TextEditingController controller;
-  final ValueChanged<String> onSelected;
-
-  static const _cities = [
-    'نابلس',
-    'الخليل',
-    'جنين',
-    'طولكرم',
-    'بديا',
-    'قلقيليا',
-    'رامالله',
-    'بيت لحم',
-    'الداخل',
-  ];
-
-  static String? matchCity(String value) {
-    final normalized = value.trim().toLowerCase();
-    if (normalized.isEmpty) return null;
-    for (final city in _cities) {
-      if (city.toLowerCase() == normalized) {
-        return city;
-      }
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Autocomplete<String>(
-      focusNode: focusNode,
-      textEditingController: controller,
-      optionsBuilder: (TextEditingValue textEditingValue) {
-        final input = textEditingValue.text.trim();
-        if (input.isEmpty) {
-          return _cities;
-        }
-        return _cities.where(
-          (c) => c.toLowerCase().contains(input.toLowerCase()),
-        );
-      },
-      onSelected: onSelected,
-      fieldViewBuilder: (context, textEditingController, fieldFocus, onFieldSubmitted) {
-        return TextFormField(
-          controller: textEditingController,
-          focusNode: fieldFocus,
-          decoration: const InputDecoration(
-            labelText: 'City',
-            suffixIcon: Icon(Icons.arrow_drop_down),
-          ),
-          textInputAction: TextInputAction.next,
-          validator: (value) {
-            final match = matchCity(value ?? '');
-            if (match == null) {
-              return 'Select a city from the list';
-            }
-            return null;
-          },
-          onFieldSubmitted: (value) {
-            onFieldSubmitted();
-          },
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        final highlightIndex = AutocompleteHighlightedOption.of(context);
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              itemCount: options.length,
-              itemBuilder: (context, index) {
-                final option = options.elementAt(index);
-                final isHighlighted = index == highlightIndex;
-                return ListTile(
-                  selected: isHighlighted,
-                  selectedTileColor: Theme.of(context).focusColor,
-                  title: Text(option),
-                  onTap: () => onSelected(option),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 class _ItemFocusBundle {
   _ItemFocusBundle()
       : name = FocusNode(),
         nameController = TextEditingController(),
         qty = FocusNode(),
-        price = FocusNode();
+        price = FocusNode(),
+        nameLink = LayerLink(),
+        nameFieldKey = GlobalKey();
 
   final FocusNode name;
   final TextEditingController nameController;
   final FocusNode qty;
   final FocusNode price;
+  final LayerLink nameLink;
+  final GlobalKey nameFieldKey;
 
   void dispose() {
     name.dispose();
@@ -413,6 +353,7 @@ class _ItemsEditorState extends State<_ItemsEditor> {
   final Map<int, bool> _loading = {};
   final Map<int, String> _lastQueried = {};
   final Map<int, int?> _selectedSuggestion = {};
+  final Map<int, OverlayEntry> _suggestionOverlays = {};
 
   String _normalizeDigits(String input) {
     const map = {
@@ -471,6 +412,10 @@ class _ItemsEditorState extends State<_ItemsEditor> {
 
   @override
   void dispose() {
+    for (final entry in _suggestionOverlays.values) {
+      entry.remove();
+    }
+    _suggestionOverlays.clear();
     for (final f in _focuses) {
       f.dispose();
     }
@@ -479,7 +424,9 @@ class _ItemsEditorState extends State<_ItemsEditor> {
 
   void _syncFocuses() {
     while (_focuses.length < widget.items.length) {
-      _focuses.add(_ItemFocusBundle());
+      final bundle = _ItemFocusBundle();
+      bundle.name.addListener(() => _handleNameFocusChange(bundle.name));
+      _focuses.add(bundle);
     }
     while (_focuses.length > widget.items.length) {
       _focuses.removeLast().dispose();
@@ -488,6 +435,9 @@ class _ItemsEditorState extends State<_ItemsEditor> {
     _loading.removeWhere((key, _) => key >= widget.items.length);
     _lastQueried.removeWhere((key, _) => key >= widget.items.length);
     _selectedSuggestion.removeWhere((key, _) => key >= widget.items.length);
+    for (final key in _suggestionOverlays.keys.where((key) => key >= widget.items.length).toList()) {
+      _removeSuggestionOverlay(key);
+    }
 
     // Keep controllers in sync with current item names without resetting selection unexpectedly.
     for (var i = 0; i < widget.items.length; i++) {
@@ -528,6 +478,115 @@ class _ItemsEditorState extends State<_ItemsEditor> {
     });
   }
 
+  void _handleNameFocusChange(FocusNode node) {
+    if (node.hasFocus) return;
+    final index = _focuses.indexWhere((f) => f.name == node);
+    if (index == -1) return;
+    _clearSuggestions(index);
+  }
+
+  void _removeSuggestionOverlay(int index) {
+    final entry = _suggestionOverlays.remove(index);
+    entry?.remove();
+  }
+
+  void _updateSuggestionOverlay(int index) {
+    if (!mounted) return;
+    if (index < 0 || index >= _focuses.length) return;
+    if (!_focuses[index].name.hasFocus) {
+      _removeSuggestionOverlay(index);
+      return;
+    }
+    final hasSuggestions = (_suggestions[index] ?? const []).isNotEmpty;
+    final isLoading = _loading[index] ?? false;
+    if (!hasSuggestions && !isLoading) {
+      _removeSuggestionOverlay(index);
+      return;
+    }
+    final existing = _suggestionOverlays[index];
+    if (existing != null) {
+      existing.markNeedsBuild();
+      return;
+    }
+    final entry = OverlayEntry(
+      builder: (context) {
+        if (index >= _focuses.length) return const SizedBox.shrink();
+        final suggestions = _suggestions[index] ?? const [];
+        final isLoading = _loading[index] ?? false;
+        if (suggestions.isEmpty && !isLoading) return const SizedBox.shrink();
+        final focus = _focuses[index];
+        final fieldContext = focus.nameFieldKey.currentContext;
+        final box = fieldContext?.findRenderObject() as RenderBox?;
+        final size = box?.size ?? Size.zero;
+        if (size == Size.zero) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        return Positioned.fill(
+          child: CompositedTransformFollower(
+            link: focus.nameLink,
+            showWhenUnlinked: false,
+            offset: Offset(0, size.height + 4),
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(6),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: size.width,
+                  maxWidth: size.width,
+                  maxHeight: 220,
+                ),
+                child: isLoading && suggestions.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : ListView(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        children: suggestions.take(6).toList().asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final s = entry.value;
+                          final selected = _selectedSuggestion[index] == i;
+                          return InkWell(
+                            onTapDown: (_) => focus.name.requestFocus(),
+                            onTap: () {
+                              widget.items[index].name = s;
+                              widget.onChanged(List.from(widget.items));
+                              focus.qty.requestFocus();
+                              setState(() {
+                                _suggestions[index] = [];
+                                _selectedSuggestion[index] = null;
+                                _loading[index] = false;
+                              });
+                              _updateSuggestionOverlay(index);
+                            },
+                            child: Container(
+                              color: selected ? scheme.primaryContainer.withValues(alpha: 0.5) : Colors.transparent,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              alignment: Alignment.centerLeft,
+                              child: Text(s),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    _suggestionOverlays[index] = entry;
+    final overlay = Overlay.of(context);
+    if (overlay == null) {
+      _suggestionOverlays.remove(index);
+      return;
+    }
+    overlay.insert(entry);
+  }
+
   Future<void> _fetchSuggestions(int index, String query) async {
     final trimmed = query.trim();
     if (trimmed.length < 2) {
@@ -535,6 +594,7 @@ class _ItemsEditorState extends State<_ItemsEditor> {
       _loading[index] = false;
       _selectedSuggestion[index] = null;
       setState(() {});
+      _updateSuggestionOverlay(index);
       return;
     }
     if (_lastQueried[index] == trimmed && (_suggestions[index] ?? []).isNotEmpty) return;
@@ -542,19 +602,27 @@ class _ItemsEditorState extends State<_ItemsEditor> {
     _loading[index] = true;
     _selectedSuggestion[index] = null;
     setState(() {});
+    _updateSuggestionOverlay(index);
     final results = await context.read<OrderNotifier>().suggestProducts(trimmed);
     if (!mounted) return;
     _suggestions[index] = results;
     _loading[index] = false;
     setState(() {});
+    _updateSuggestionOverlay(index);
   }
 
   void _clearSuggestions(int index) {
-    if ((_suggestions[index] ?? []).isEmpty && (_selectedSuggestion[index] == null)) return;
+    if ((_suggestions[index] ?? []).isEmpty &&
+        (_selectedSuggestion[index] == null) &&
+        !(_loading[index] ?? false)) {
+      return;
+    }
     setState(() {
       _suggestions[index] = [];
       _selectedSuggestion[index] = null;
+      _loading[index] = false;
     });
+    _updateSuggestionOverlay(index);
   }
 
   @override
@@ -582,27 +650,25 @@ class _ItemsEditorState extends State<_ItemsEditor> {
             if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
               final next = (current + 1) % list.length;
               setState(() => _selectedSuggestion[index] = next);
+              _updateSuggestionOverlay(index);
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
               final next = current <= 0 ? list.length - 1 : current - 1;
               setState(() => _selectedSuggestion[index] = next);
+              _updateSuggestionOverlay(index);
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.enter && current >= 0 && current < list.length) {
               final selected = list[current];
               item.name = selected;
               widget.onChanged(List.from(widget.items));
-              setState(() {
-                _suggestions[index] = [];
-                _selectedSuggestion[index] = null;
-              });
+              _clearSuggestions(index);
               focus.qty.requestFocus();
               return KeyEventResult.handled;
             }
             return KeyEventResult.ignored;
           };
-          final scheme = Theme.of(context).colorScheme;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: CallbackShortcuts(
@@ -621,71 +687,28 @@ class _ItemsEditorState extends State<_ItemsEditor> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextFormField(
-                            controller: nameController,
-                            focusNode: focus.name,
-                            decoration: InputDecoration(labelText: 'Name #${index + 1}'),
-                            textInputAction: TextInputAction.next,
-                            onFieldSubmitted: (_) {
-                              _clearSuggestions(index);
-                              focus.qty.requestFocus();
-                            },
-                            onTapOutside: (_) => _clearSuggestions(index),
-                            onChanged: (value) {
-                              item.name = value;
-                              widget.onChanged(List.from(widget.items));
-                              _selectedSuggestion[index] = null;
-                              _fetchSuggestions(index, value);
-                            },
-                            validator: (value) =>
-                                value == null || value.trim().isEmpty ? 'Name is required' : null,
+                          CompositedTransformTarget(
+                            link: focus.nameLink,
+                            child: TextFormField(
+                              key: focus.nameFieldKey,
+                              controller: nameController,
+                              focusNode: focus.name,
+                              decoration: InputDecoration(labelText: 'Name #${index + 1}'),
+                              textInputAction: TextInputAction.next,
+                              onFieldSubmitted: (_) {
+                                _clearSuggestions(index);
+                                focus.qty.requestFocus();
+                              },
+                              onChanged: (value) {
+                                item.name = value;
+                                widget.onChanged(List.from(widget.items));
+                                _selectedSuggestion[index] = null;
+                                _fetchSuggestions(index, value);
+                              },
+                              validator: (value) =>
+                                  value == null || value.trim().isEmpty ? 'Name is required' : null,
+                            ),
                           ),
-                          if ((_loading[index] ?? false))
-                            const Padding(
-                              padding: EdgeInsets.only(top: 4),
-                              child: SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2)),
-                            ),
-                          if ((_suggestions[index] ?? []).isNotEmpty)
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              decoration: BoxDecoration(
-                                color: scheme.surface,
-                                border: Border.all(color: scheme.outlineVariant),
-                                borderRadius: BorderRadius.circular(6),
-                                boxShadow: const [
-                                  BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: (_suggestions[index] ?? []).take(6).toList().asMap().entries.map((entry) {
-                                  final i = entry.key;
-                                  final s = entry.value;
-                                  final selected = _selectedSuggestion[index] == i;
-                                  return InkWell(
-                                    onTap: () {
-                                      item.name = s;
-                                      widget.onChanged(List.from(widget.items));
-                                      focus.qty.requestFocus();
-                                      setState(() {
-                                        _suggestions[index] = [];
-                                        _selectedSuggestion[index] = null;
-                                      });
-                                    },
-                                    child: Container(
-                                      color: selected ? scheme.primaryContainer.withValues(alpha: 0.5) : Colors.transparent,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(s),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -697,6 +720,9 @@ class _ItemsEditorState extends State<_ItemsEditor> {
                         focusNode: focus.qty,
                         decoration: const InputDecoration(labelText: 'Qty'),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'^(\d+\.?\d*|\.\d+)?$')),
+                        ],
                         textInputAction: TextInputAction.next,
                         onFieldSubmitted: (_) => focus.price.requestFocus(),
                         onChanged: (value) {
@@ -717,6 +743,9 @@ class _ItemsEditorState extends State<_ItemsEditor> {
                         focusNode: focus.price,
                         decoration: const InputDecoration(labelText: 'Price'),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'^(\d+\.?\d*|\.\d+)?$')),
+                        ],
                         textInputAction: TextInputAction.done,
                         onFieldSubmitted: (_) {
                           widget.onAdd();

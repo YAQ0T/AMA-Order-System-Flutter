@@ -14,26 +14,41 @@ const sanitizeItems = (items, { allowEmpty = false } = {}) => {
 
     const cleaned = [];
     const seenNames = new Set();
+    const numericPattern = /^(?:\d+\.?\d*|\.\d+)$/;
 
     for (const [index, rawItem] of items.entries()) {
         const name = (rawItem.name || '').trim();
-        const quantityNum = Number(rawItem.quantity);
-        const priceNumRaw = rawItem.price === '' || rawItem.price === undefined || rawItem.price === null
-            ? null
-            : Number(rawItem.price);
-        const priceNum = Number.isFinite(priceNumRaw) ? priceNumRaw : null;
-        const normalizedQuantity = Number.isFinite(quantityNum)
-            ? Math.round(quantityNum * 1000) / 1000
-            : quantityNum;
+        const priceRaw = typeof rawItem.price === 'string' ? rawItem.price.trim() : rawItem.price;
+        const quantityRaw = typeof rawItem.quantity === 'string' ? rawItem.quantity.trim() : rawItem.quantity;
 
         // Skip completely empty rows the UI might send
-        if (!name && (rawItem.quantity === undefined || rawItem.quantity === null || rawItem.quantity === '')) {
+        if (!name && (quantityRaw === undefined || quantityRaw === null || quantityRaw === '')) {
             continue;
         }
 
         if (!name) {
             throw new Error(`Item ${index + 1} is missing a name`);
         }
+
+        if (typeof quantityRaw === 'string' && !numericPattern.test(quantityRaw)) {
+            throw new Error(`Invalid quantity for "${name}"`);
+        }
+        const quantityNum = Number(quantityRaw);
+        const hasPrice = priceRaw !== '' && priceRaw !== undefined && priceRaw !== null;
+        let priceNum = null;
+        if (hasPrice) {
+            if (typeof priceRaw === 'string' && !numericPattern.test(priceRaw)) {
+                throw new Error(`Invalid price for "${name}"`);
+            }
+            const priceNumRaw = Number(priceRaw);
+            if (!Number.isFinite(priceNumRaw)) {
+                throw new Error(`Invalid price for "${name}"`);
+            }
+            priceNum = priceNumRaw;
+        }
+        const normalizedQuantity = Number.isFinite(quantityNum)
+            ? Math.round(quantityNum * 1000) / 1000
+            : quantityNum;
 
         if (!Number.isFinite(quantityNum) || quantityNum <= 0) {
             throw new Error(`Invalid quantity for "${name}"`);

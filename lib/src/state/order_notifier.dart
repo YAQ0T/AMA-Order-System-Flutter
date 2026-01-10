@@ -9,6 +9,7 @@ class OrderNotifier extends ChangeNotifier {
   OrderNotifier(ApiClient client) : _service = OrderService(client);
 
   final OrderService _service;
+  static const Set<String> _activeStatuses = {'pending', 'in-progress'};
   List<OrderModel> orders = [];
   bool loading = false;
   String? error;
@@ -25,7 +26,8 @@ class OrderNotifier extends ChangeNotifier {
       statusFilter = status ?? statusFilter;
       searchTerm = search ?? searchTerm;
       final normalizedStatus = statusFilter == 'all' ? null : statusFilter;
-      orders = await _fetchByRole(normalizedStatus);
+      final fetched = await _fetchByRole(normalizedStatus);
+      orders = _applyStatusFilter(fetched);
     } catch (e) {
       error = '$e';
     } finally {
@@ -39,7 +41,9 @@ class OrderNotifier extends ChangeNotifier {
     notifyListeners();
     try {
       final created = await _service.createOrder(draft);
-      orders = [created, ...orders];
+      if (_matchesStatusFilter(created)) {
+        orders = [created, ...orders];
+      }
       for (final item in draft.items) {
         final name = item.name.trim();
         if (name.isNotEmpty && !_productCache.contains(name)) {
@@ -65,7 +69,7 @@ class OrderNotifier extends ChangeNotifier {
       if (notifyAccounter != null) payload['notifyAccounter'] = notifyAccounter;
       if (skipEmail != null) payload['skipEmail'] = skipEmail;
       final updated = await _service.updateOrder(orderId, payload);
-      orders = orders.map((o) => o.id == orderId ? updated : o).toList();
+      orders = _mergeUpdatedOrder(updated);
       notifyListeners();
     } catch (e) {
       error = '$e';
@@ -118,7 +122,7 @@ class OrderNotifier extends ChangeNotifier {
     if (notifyAccounter != null) fullPayload['notifyAccounter'] = notifyAccounter;
     if (skipEmail != null) fullPayload['skipEmail'] = skipEmail;
     final updated = await _service.updateOrder(orderId, fullPayload);
-    orders = orders.map((o) => o.id == orderId ? updated : o).toList();
+    orders = _mergeUpdatedOrder(updated);
     notifyListeners();
   }
 
@@ -166,5 +170,37 @@ class OrderNotifier extends ChangeNotifier {
       default:
         return _service.fetchOrders(status: status, search: searchTerm);
     }
+  }
+
+  bool _matchesStatusFilter(OrderModel order, {String? filter}) {
+    final status = filter ?? statusFilter;
+    if (status == 'all') return true;
+    if (status == 'active') return _activeStatuses.contains(order.status);
+    return order.status == status;
+  }
+
+  List<OrderModel> _applyStatusFilter(List<OrderModel> source, {String? filter}) {
+    final status = filter ?? statusFilter;
+    if (status == 'all') return source;
+    if (status == 'active') {
+      return source.where((o) => _activeStatuses.contains(o.status)).toList();
+    }
+    return source.where((o) => o.status == status).toList();
+  }
+
+  List<OrderModel> _mergeUpdatedOrder(OrderModel updated) {
+    final matches = _matchesStatusFilter(updated);
+    final index = orders.indexWhere((o) => o.id == updated.id);
+    if (matches) {
+      if (index == -1) {
+        return [updated, ...orders];
+      }
+      final next = [...orders];
+      next[index] = updated;
+      return next;
+    }
+    if (index == -1) return orders;
+    final next = [...orders]..removeAt(index);
+    return next;
   }
 }

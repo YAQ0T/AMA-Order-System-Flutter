@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_colors.dart';
 import '../models/order.dart';
 import '../models/order_item.dart';
 
@@ -288,20 +289,27 @@ class _OrderTableState extends State<OrderTable> {
   Widget _itemStatusCell(BuildContext context, OrderModel order, OrderItemModel item) {
     if (widget.onItemStatus == null) {
       final scheme = Theme.of(context).colorScheme;
+      final isDark = scheme.brightness == Brightness.dark;
+      final successColor = isDark ? AppColors.statusCompleted : scheme.primary;
+      final errorColor = isDark ? AppColors.statusError : scheme.error;
       final icon = item.status == 'collected'
-          ? Icon(Icons.check, color: scheme.primary)
+          ? Icon(Icons.check, color: successColor)
           : item.status == 'unavailable'
-              ? Icon(Icons.close, color: scheme.error)
+              ? Icon(Icons.close, color: errorColor)
               : const SizedBox.shrink();
       return Center(child: icon);
     }
     final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    final successColor = isDark ? AppColors.statusCompleted : scheme.primary;
+    final errorColor = isDark ? AppColors.statusError : scheme.error;
+    final idleColor = isDark ? AppColors.statusPending : scheme.outline;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
           visualDensity: VisualDensity.compact,
-          icon: Icon(Icons.check_circle, color: scheme.primary),
+          icon: Icon(Icons.check_circle, color: successColor),
           onPressed: () async {
             await widget.onItemStatus!(order, item.id, 'collected');
             // Immediately rebuild so maker/taker sees the highlight
@@ -310,7 +318,7 @@ class _OrderTableState extends State<OrderTable> {
         ),
         IconButton(
           visualDensity: VisualDensity.compact,
-          icon: Icon(Icons.cancel, color: scheme.error),
+          icon: Icon(Icons.cancel, color: errorColor),
           onPressed: () async {
             await widget.onItemStatus!(order, item.id, 'unavailable');
             (context as Element).markNeedsBuild();
@@ -318,7 +326,7 @@ class _OrderTableState extends State<OrderTable> {
         ),
         IconButton(
           visualDensity: VisualDensity.compact,
-          icon: Icon(Icons.radio_button_unchecked, color: scheme.outline),
+          icon: Icon(Icons.radio_button_unchecked, color: idleColor),
           onPressed: () async {
             await widget.onItemStatus!(order, item.id, null);
             (context as Element).markNeedsBuild();
@@ -331,6 +339,16 @@ class _OrderTableState extends State<OrderTable> {
   String _formatQuantity(num qty) => qty % 1 == 0 ? qty.toInt().toString() : qty.toString();
 
   Color? _rowColor(ColorScheme scheme, String? status) {
+    if (scheme.brightness == Brightness.dark) {
+      switch (status) {
+        case 'collected':
+          return AppColors.statusCompleted.withValues(alpha: 0.2);
+        case 'unavailable':
+          return AppColors.statusError.withValues(alpha: 0.2);
+        default:
+          return scheme.surfaceContainerHighest.withValues(alpha: 0.4);
+      }
+    }
     switch (status) {
       case 'collected':
         return scheme.primaryContainer.withValues(alpha: 0.6);
@@ -342,6 +360,20 @@ class _OrderTableState extends State<OrderTable> {
   }
 
   Color _statusColor(ColorScheme scheme, String status) {
+    if (scheme.brightness == Brightness.dark) {
+      switch (status) {
+        case 'completed':
+          return AppColors.statusCompleted.withValues(alpha: 0.3);
+        case 'in-progress':
+          return AppColors.statusInProgress.withValues(alpha: 0.3);
+        case 'archived':
+          return scheme.surfaceContainerHighest;
+        case 'entered_erp':
+          return AppColors.statusEnteredErp.withValues(alpha: 0.3);
+        default:
+          return AppColors.statusPending.withValues(alpha: 0.3);
+      }
+    }
     switch (status) {
       case 'completed':
         return scheme.primaryContainer;

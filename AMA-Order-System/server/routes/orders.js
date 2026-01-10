@@ -28,9 +28,19 @@ router.post('/', authenticateToken, async (req, res) => {
         }
 
         const orderStatus = status === 'archived' ? 'archived' : 'pending';
+        const normalizedAccounterId = accounterId === '' ? null : accounterId;
 
-        if (accounterId) {
-            const accounter = await User.findByPk(accounterId);
+        if (orderStatus !== 'archived') {
+            if (!Array.isArray(assignedTakerIds) || assignedTakerIds.length == 0) {
+                return res.status(400).json({ error: 'Active orders require at least one taker' });
+            }
+            if (normalizedAccounterId === undefined || normalizedAccounterId === null) {
+                return res.status(400).json({ error: 'Active orders require an accounter' });
+            }
+        }
+
+        if (normalizedAccounterId !== undefined && normalizedAccounterId !== null) {
+            const accounter = await User.findByPk(normalizedAccounterId);
             if (!accounter || accounter.role !== 'accounter') {
                 return res.status(400).json({ error: 'Invalid accounter selection' });
             }
@@ -44,7 +54,7 @@ router.post('/', authenticateToken, async (req, res) => {
             makerId: req.user.id,
             status: orderStatus,
             city,
-            accounterId
+            accounterId: normalizedAccounterId
         }, { transaction });
 
         // Only assign takers if NOT archived
@@ -124,6 +134,7 @@ router.post('/', authenticateToken, async (req, res) => {
         const isValidationError = [
             'Order must have',
             'Invalid quantity',
+            'Invalid price',
             'Duplicate item',
             'missing a name'
         ].some(marker => (error.message || '').includes(marker));
@@ -165,11 +176,19 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         // Track which incoming items explicitly included a status field (even if null)
         const statusProvidedByName = new Map();
+        const itemIdByName = new Map();
         if (Array.isArray(items)) {
             for (const rawItem of items) {
                 const rawName = (rawItem.name || '').trim();
                 if (!rawName) continue;
                 statusProvidedByName.set(rawName.toLowerCase(), Object.prototype.hasOwnProperty.call(rawItem, 'status'));
+                const rawId = rawItem.id;
+                if (rawId !== undefined && rawId !== null && rawId !== '') {
+                    const parsedId = Number(rawId);
+                    if (Number.isFinite(parsedId)) {
+                        itemIdByName.set(rawName.toLowerCase(), parsedId);
+                    }
+                }
             }
         }
 
@@ -240,6 +259,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
         if (!isAdmin && !isMaker && !isAssigned) {
             return res.status(403).json({ error: 'Not authorized to edit this order' });
+        }
+
+        const isUnarchiving = order.status === 'archived' && status && status !== 'archived';
+        if (isUnarchiving) {
+            if (!Array.isArray(assignedTakerIds) || assignedTakerIds.length == 0) {
+                return res.status(400).json({ error: 'Select at least one taker before activating an archived order' });
+            }
+            if (accounterId === undefined || accounterId === null || accounterId === '') {
+                return res.status(400).json({ error: 'Select an accounter before activating an archived order' });
+            }
         }
 
         transaction = await sequelize.transaction();
@@ -358,6 +387,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 const existingItemsStatus = new Map(
                     oldItems.map(item => [item.name, item.status ?? null])
                 );
+                const isTaker = req.user.role === 'taker';
+                const existingItemsPriceByName = new Map();
+                const existingItemsPriceById = new Map();
+                if (isTaker) {
+                    const pricedItems = await OrderItem.findAll({
+                        where: { orderId: order.id },
+                        attributes: ['id', 'name', 'price'],
+                        transaction
+                    });
+                    pricedItems.forEach((item) => {
+                        if (item.name) {
+                            existingItemsPriceByName.set(item.name.toLowerCase(), item.price ?? null);
+                        }
+                        existingItemsPriceById.set(item.id, item.price ?? null);
+                    });
+                }
 
                 // Remove old items and create new ones, keeping status changes sent from the client
                 await OrderItem.destroy({ where: { orderId: order.id }, transaction });
@@ -366,10 +411,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 for (const item of newItems) {
                     const previouslyExisting = isUpdate.get(item.name);
                     const previousStatus = previouslyExisting ? (existingItemsStatus.get(item.name) ?? null) : null;
-                    const statusProvided = statusProvidedByName.get(item.name.toLowerCase()) ?? false;
+                    const nameKey = item.name.toLowerCase();
+                    const statusProvided = statusProvidedByName.get(nameKey) ?? false;
                     const nextStatus = (previouslyExisting && !statusProvided)
                         ? previousStatus
                         : (item.status ?? null);
+                    let nextPrice = item.price;
+                    if (isTaker) {
+                        const itemId = itemIdByName.get(nameKey);
+                        if (itemId != null && existingItemsPriceById.has(itemId)) {
+                            nextPrice = existingItemsPriceById.get(itemId);
+                        } else if (existingItemsPriceByName.has(nameKey)) {
+                            nextPrice = existingItemsPriceByName.get(nameKey);
+                        } else {
+                            nextPrice = null;
+                        }
+                    }
 
                     // Log status changes for existing items
                     if (previouslyExisting && previousStatus !== nextStatus) {
@@ -384,7 +441,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
                     orderItems.push({
                         ...item,
                         orderId: order.id,
-                        status: nextStatus
+                        status: nextStatus,
+                        price: nextPrice
                     });
                 }
                 await OrderItem.bulkCreate(orderItems, { transaction });
@@ -605,6 +663,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         const isValidationError = [
             'Order must have',
             'Invalid quantity',
+            'Invalid price',
             'Duplicate item',
             'missing a name'
         ].some(marker => (error.message || '').includes(marker));

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/order.dart';
@@ -90,6 +91,9 @@ class _TakerDashboardState extends State<TakerDashboard> {
                 controller: qtyCtrl,
                 decoration: const InputDecoration(labelText: 'Quantity'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^(\d+\.?\d*|\.\d+)?$')),
+                ],
               ),
               const SizedBox(height: 12),
               Row(
@@ -117,6 +121,7 @@ class _TakerDashboardState extends State<TakerDashboard> {
                         {
                           'items': order.items
                               .map((i) => {
+                                    'id': i.id,
                                     'name': i.id == item.id ? newName : i.name,
                                     'quantity': i.id == item.id ? newQty : i.quantity,
                                     'price': i.price,

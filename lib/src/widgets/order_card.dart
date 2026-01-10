@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_colors.dart';
 import '../models/order.dart';
 
 class OrderCard extends StatelessWidget {
@@ -21,6 +22,7 @@ class OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Padding(
@@ -92,9 +94,11 @@ class OrderCard extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                       backgroundColor: _itemColor(scheme, item.status),
                       avatar: item.status == 'collected'
-                          ? Icon(Icons.check, size: 16, color: scheme.primary)
+                          ? Icon(Icons.check,
+                              size: 16, color: isDark ? AppColors.statusCompleted : scheme.primary)
                           : item.status == 'unavailable'
-                              ? Icon(Icons.close, size: 16, color: scheme.error)
+                              ? Icon(Icons.close,
+                                  size: 16, color: isDark ? AppColors.statusError : scheme.error)
                               : null,
                     ))
                     .toList(),
@@ -128,6 +132,9 @@ class OrderCard extends StatelessWidget {
 
   Color _statusColor(BuildContext context, String status) {
     final scheme = Theme.of(context).colorScheme;
+    if (scheme.brightness == Brightness.dark) {
+      return _darkStatusColor(status);
+    }
     switch (status) {
       case 'completed':
         return scheme.primaryContainer;
@@ -139,6 +146,21 @@ class OrderCard extends StatelessWidget {
         return scheme.secondaryContainer;
       default:
         return scheme.surfaceContainerHighest.withValues(alpha: 0.6);
+    }
+  }
+
+  Color _darkStatusColor(String status) {
+    switch (status) {
+      case 'completed':
+        return AppColors.statusCompleted.withValues(alpha: 0.3);
+      case 'in-progress':
+        return AppColors.statusInProgress.withValues(alpha: 0.3);
+      case 'archived':
+        return AppColors.darkSurface.withValues(alpha: 0.6);
+      case 'entered_erp':
+        return AppColors.statusEnteredErp.withValues(alpha: 0.3);
+      default:
+        return AppColors.statusPending.withValues(alpha: 0.3);
     }
   }
 
@@ -161,6 +183,16 @@ class OrderCard extends StatelessWidget {
   }
 
   Color? _itemColor(ColorScheme scheme, String? status) {
+    if (scheme.brightness == Brightness.dark) {
+      switch (status) {
+        case 'collected':
+          return AppColors.statusCompleted.withValues(alpha: 0.25);
+        case 'unavailable':
+          return AppColors.statusError.withValues(alpha: 0.25);
+        default:
+          return scheme.surfaceContainerHighest;
+      }
+    }
     switch (status) {
       case 'collected':
         return scheme.primaryContainer.withValues(alpha: 0.6);

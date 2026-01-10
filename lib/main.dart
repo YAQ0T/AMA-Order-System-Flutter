@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'src/config/app_colors.dart';
 import 'src/config/api_config.dart';
 import 'src/screens/auth/login_page.dart';
 import 'src/screens/auth/pending_page.dart';
@@ -116,22 +117,46 @@ class AMAOrderApp extends StatelessWidget {
   }
 
   ThemeData _buildTheme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final seedColor = isDark ? AppColors.darkPrimary : const Color(0xFF2F7A72);
     final baseScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF2F7A72),
+      seedColor: seedColor,
       brightness: brightness,
     );
-    final isDark = brightness == Brightness.dark;
-    final surfaceBase = isDark ? const Color(0xFF0F1413) : const Color(0xFFF4F6F5);
-    final surfaceContainer = isDark ? const Color(0xFF1A2422) : const Color(0xFFE7EFEE);
+    final surfaceBase = isDark ? AppColors.darkBackground : const Color(0xFFF4F6F5);
+    final surfaceContainer = isDark ? AppColors.darkSurface : const Color(0xFFE7EFEE);
     final scheme = baseScheme.copyWith(
-      surface: isDark ? const Color(0xFF111917) : Colors.white,
+      primary: isDark ? AppColors.darkPrimary : baseScheme.primary,
+      onPrimary: isDark ? AppColors.darkTextMain : baseScheme.onPrimary,
+      primaryContainer: isDark ? AppColors.darkPrimary : baseScheme.primaryContainer,
+      onPrimaryContainer: isDark ? AppColors.darkTextMain : baseScheme.onPrimaryContainer,
+      secondary: isDark ? AppColors.darkAccent : baseScheme.secondary,
+      onSecondary: isDark ? AppColors.darkTextMain : baseScheme.onSecondary,
+      secondaryContainer: isDark ? AppColors.darkAccent : baseScheme.secondaryContainer,
+      onSecondaryContainer: isDark ? AppColors.darkTextMain : baseScheme.onSecondaryContainer,
+      tertiary: isDark ? AppColors.statusEnteredErp : baseScheme.tertiary,
+      onTertiary: isDark ? AppColors.darkTextMain : baseScheme.onTertiary,
+      tertiaryContainer: isDark
+          ? AppColors.statusEnteredErp.withValues(alpha: 0.35)
+          : baseScheme.tertiaryContainer,
+      onTertiaryContainer: isDark ? AppColors.darkTextMain : baseScheme.onTertiaryContainer,
+      surface: isDark ? AppColors.darkSurface : Colors.white,
+      background: isDark ? AppColors.darkBackground : baseScheme.background,
+      onBackground: isDark ? AppColors.darkTextMain : baseScheme.onBackground,
+      onSurface: isDark ? AppColors.darkTextMain : baseScheme.onSurface,
+      surfaceVariant: isDark ? AppColors.darkSurface : baseScheme.surfaceVariant,
+      onSurfaceVariant: isDark ? AppColors.darkTextMuted : baseScheme.onSurfaceVariant,
       surfaceContainerHighest: surfaceContainer,
       surfaceContainerHigh: surfaceContainer,
       surfaceContainer: surfaceContainer,
-      secondary: isDark ? baseScheme.secondary : const Color(0xFF597D78),
-      secondaryContainer: isDark ? baseScheme.secondaryContainer : const Color(0xFFD8E7E4),
-      tertiary: isDark ? baseScheme.tertiary : const Color(0xFF6E8FB6),
-      tertiaryContainer: isDark ? baseScheme.tertiaryContainer : const Color(0xFFDDE7F3),
+      outline: isDark ? AppColors.darkTextMuted : baseScheme.outline,
+      outlineVariant: isDark ? AppColors.darkGlassBorder : baseScheme.outlineVariant,
+      error: isDark ? AppColors.statusError : baseScheme.error,
+      onError: isDark ? AppColors.darkTextMain : baseScheme.onError,
+      errorContainer:
+          isDark ? AppColors.statusError.withValues(alpha: 0.2) : baseScheme.errorContainer,
+      onErrorContainer: isDark ? AppColors.darkTextMain : baseScheme.onErrorContainer,
+      surfaceTint: isDark ? AppColors.darkPrimary : baseScheme.surfaceTint,
     );
 
     final boldTextTheme =
@@ -162,7 +187,7 @@ class AMAOrderApp extends StatelessWidget {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest,
+        fillColor: isDark ? AppColors.darkInputFill : scheme.surfaceContainerHighest,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

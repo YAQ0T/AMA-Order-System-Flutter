@@ -2,6 +2,20 @@ import 'order_item.dart';
 import 'order_log.dart';
 import 'user.dart';
 
+const kOrderCities = [
+  'نابلس',
+  'الخليل',
+  'جنين',
+  'طولكرم',
+  'بديا',
+  'قلقيليا',
+  'رامالله',
+  'بيت لحم',
+  'الداخل',
+];
+
+const kDefaultOrderCity = 'نابلس';
+
 class OrderModel {
   const OrderModel({
     required this.id,
@@ -60,7 +74,7 @@ class OrderDraft {
   OrderDraft({
     this.title,
     this.description,
-    this.city = 'نابلس',
+    this.city = kDefaultOrderCity,
     this.items = const [],
     this.assignedTakerIds = const [],
     this.accounterId,
