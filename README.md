@@ -60,7 +60,7 @@ The backend is an Express API with Sequelize models backed by PostgreSQL. It sup
 
 ### Data model summary
 - User: roles (`maker`, `taker`, `accounter`, `admin`), approval state, email, theme preference.
-- Order: status, city, maker, accounter, assigned takers.
+- Order: status, city, maker, accounter, assigned takers, assigned accounter.
 - OrderItem: quantity, price, item status.
 - OrderLog: description/status history.
 - ActivityLog: audit trail for admin.
