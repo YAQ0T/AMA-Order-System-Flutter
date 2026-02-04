@@ -9,6 +9,7 @@ import '../../utils/order_printer.dart';
 import '../../widgets/order_filters.dart';
 import '../../widgets/order_form.dart';
 import '../../widgets/order_edit_sheet.dart';
+import '../../widgets/order_report_view.dart';
 import '../../widgets/order_table.dart';
 
 class MakerDashboard extends StatefulWidget {
@@ -24,7 +25,7 @@ class _MakerDashboardState extends State<MakerDashboard> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 3, vsync: this);
     _tab.addListener(() {
       if (!_tab.indexIsChanging) {
         _loadForTab();
@@ -39,9 +40,14 @@ class _MakerDashboardState extends State<MakerDashboard> with SingleTickerProvid
     super.dispose();
   }
 
-  String get _tabStatus => _tab.index == 0 ? 'active' : 'archived';
+  String get _tabStatus {
+    if (_tab.index == 0) return 'active';
+    if (_tab.index == 1) return 'archived';
+    return 'active';
+  }
 
   Future<void> _loadForTab() {
+    if (_tab.index == 2) return Future.value();
     return context.read<OrderNotifier>().loadOrders(status: _tabStatus);
   }
 
@@ -68,6 +74,7 @@ class _MakerDashboardState extends State<MakerDashboard> with SingleTickerProvid
           tabs: const [
             Tab(text: 'Active'),
             Tab(text: 'Archived'),
+            Tab(text: 'Reports'),
           ],
         ),
         Expanded(
@@ -87,6 +94,7 @@ class _MakerDashboardState extends State<MakerDashboard> with SingleTickerProvid
                   onEdit: _openEdit,
                   onSearchChanged: (s) => orders.loadOrders(search: s, status: 'archived'),
                 ),
+                const OrderReportView(title: 'My orders report'),
               ],
             ),
           ),

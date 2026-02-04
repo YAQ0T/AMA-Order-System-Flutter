@@ -1,16 +1,26 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../models/order.dart';
-import 'order_printer_shared.dart';
+import 'order_report.dart';
+import 'order_report_printer_shared.dart';
 
-Future<void> printOrder(OrderModel order) async {
+Future<void> exportReport(OrderReport report) async {
   final fonts = await _loadFonts();
-  final doc = buildOrderDocument(order, fonts.base, fonts.arabicFallback, fonts.latinFallback);
-  await Printing.layoutPdf(onLayout: (format) async => doc.save());
+  final doc =
+      buildOrderReportDocument(report, fonts.base, fonts.arabicFallback, fonts.latinFallback);
+  final bytes = await doc.save();
+  await Printing.sharePdf(bytes: bytes, filename: _filename(report));
+}
+
+String _filename(OrderReport report) {
+  final fmt = DateFormat('yyyyMMdd');
+  final from = fmt.format(report.from);
+  final to = fmt.format(report.to);
+  return 'orders_report_${from}_$to.pdf';
 }
 
 class _PdfFonts {

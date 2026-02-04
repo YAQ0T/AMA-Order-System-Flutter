@@ -9,6 +9,7 @@ import '../../models/user.dart';
 import '../../state/admin_notifier.dart';
 import '../../state/order_notifier.dart';
 import '../../widgets/order_card.dart';
+import '../../widgets/order_report_view.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -23,7 +24,7 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminNotifier>().refreshAll();
       context.read<OrderNotifier>().loadOrders();
@@ -49,6 +50,7 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
             Tab(text: 'Users'),
             Tab(text: 'Orders'),
             Tab(text: 'Logs'),
+            Tab(text: 'Reports'),
           ],
         ),
         Expanded(
@@ -59,6 +61,7 @@ class _AdminDashboardState extends State<AdminDashboard> with SingleTickerProvid
               _UsersTab(admin: admin),
               _OrdersTab(),
               _LogsTab(admin: admin),
+              const OrderReportView(title: 'Orders report'),
             ],
           ),
         )

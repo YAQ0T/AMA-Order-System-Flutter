@@ -61,6 +61,121 @@ class _TakerDashboardState extends State<TakerDashboard> {
 
   String _formatQuantity(num value) => value % 1 == 0 ? value.toInt().toString() : value.toString();
 
+  Future<void> _addItem(OrderModel order) async {
+    final nameCtrl = TextEditingController();
+    final qtyCtrl = TextEditingController(text: '1');
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add item', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: qtyCtrl,
+                decoration: const InputDecoration(labelText: 'Quantity'),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^(\d+\.?\d*|\.\d+)?$')),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () async {
+                      final newName = nameCtrl.text.trim();
+                      final normalizedQty = _normalizeDigits(qtyCtrl.text.trim());
+                      final newQty = double.tryParse(normalizedQty);
+                      if (newName.isEmpty || newQty == null || newQty <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Enter a name and a positive quantity')));
+                        return;
+                      }
+
+                      final existingNames = order.items
+                          .map((i) => i.name.trim().toLowerCase())
+                          .where((name) => name.isNotEmpty)
+                          .toSet();
+                      if (existingNames.contains(newName.toLowerCase())) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Item already exists, edit it instead')));
+                        return;
+                      }
+
+                      final updatedItems = [
+                        ...order.items.map((i) => {
+                              'id': i.id,
+                              'name': i.name,
+                              'quantity': i.quantity,
+                              'price': i.price,
+                              'status': i.status
+                            }),
+                        {
+                          'name': newName,
+                          'quantity': newQty,
+                          'price': null,
+                          'status': null,
+                        }
+                      ];
+
+                      final notifier = this.context.read<OrderNotifier>();
+                      await notifier.updateOrderDetails(
+                        order.id,
+                        {'items': updatedItems},
+                        notifyMaker: false,
+                        notifyAccounter: false,
+                        skipEmail: true,
+                      );
+
+                      if (!mounted) return;
+                      if (!context.mounted) return;
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Add'),
+                  ),
+                ],
+              )
+            ],
+          ),
+        );
+      },
+    );
+    if (!mounted) {
+      nameCtrl.dispose();
+      qtyCtrl.dispose();
+      return;
+    }
+    // Delay disposal until the bottom sheet is fully removed to avoid rebuilds
+    // referencing a disposed controller during the close animation.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nameCtrl.dispose();
+      qtyCtrl.dispose();
+    });
+  }
+
   Future<void> _editItem(OrderModel order, OrderItemModel item) async {
     final nameCtrl = TextEditingController(text: item.name);
     final qtyCtrl = TextEditingController(text: _formatQuantity(item.quantity));
@@ -183,6 +298,7 @@ class _TakerDashboardState extends State<TakerDashboard> {
                 orders.updateItemStatus(order, itemId, status,
                     notifyMaker: false, notifyAccounter: false, skipEmail: true),
             onItemEdit: _editItem,
+            onItemAdd: _addItem,
             statusGuard: _takerStatusGuard,
             inlineStatusButton: true,
             showPrices: false,

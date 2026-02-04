@@ -308,6 +308,7 @@ class _OrderEditSheetState extends State<OrderEditSheet> {
 
   Widget _itemRow(int index, OrderItemInput item) {
     return Card(
+      key: ValueKey(item),
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
         padding: const EdgeInsets.all(8),

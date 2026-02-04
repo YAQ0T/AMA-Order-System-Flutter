@@ -579,7 +579,7 @@ class _ItemsEditorState extends State<_ItemsEditor> {
       },
     );
     _suggestionOverlays[index] = entry;
-    final overlay = Overlay.of(context);
+    final overlay = Overlay.maybeOf(context);
     if (overlay == null) {
       _suggestionOverlays.remove(index);
       return;
@@ -633,8 +633,6 @@ class _ItemsEditorState extends State<_ItemsEditor> {
         Row(
           children: [
             const Text('Items'),
-            const Spacer(),
-            TextButton.icon(onPressed: widget.onAdd, icon: const Icon(Icons.add), label: const Text('Add')),
           ],
         ),
         ...widget.items.asMap().entries.map((entry) {
@@ -768,6 +766,15 @@ class _ItemsEditorState extends State<_ItemsEditor> {
             ),
           );
         }),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: widget.onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Add'),
+          ),
+        ),
       ],
     );
   }

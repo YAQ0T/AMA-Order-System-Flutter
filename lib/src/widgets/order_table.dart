@@ -13,6 +13,7 @@ class OrderTable extends StatefulWidget {
     this.onItemStatus,
     this.onEdit,
     this.onItemEdit,
+    this.onItemAdd,
     this.showLogs = false,
     this.statusGuard,
     this.inlineStatusButton = false,
@@ -27,6 +28,7 @@ class OrderTable extends StatefulWidget {
   final Future<void> Function(OrderModel, int, String?)? onItemStatus;
   final Future<void> Function(OrderModel)? onEdit;
   final Future<void> Function(OrderModel, OrderItemModel)? onItemEdit;
+  final Future<void> Function(OrderModel)? onItemAdd;
   final bool showLogs;
   final Future<String?> Function(OrderModel, String)? statusGuard;
   final bool inlineStatusButton;
@@ -177,11 +179,25 @@ class _OrderTableState extends State<OrderTable> {
                         onPressed: () => widget.onDelete!(order.id),
                       ),
                   ],
-                )
+                ),
               ],
             ),
             const SizedBox(height: 8),
+            if (widget.onItemAdd != null)
+              Text('Items', style: Theme.of(context).textTheme.titleSmall),
+            if (widget.onItemAdd != null) const SizedBox(height: 4),
             _itemsTable(context, order),
+            if (widget.onItemAdd != null) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => widget.onItemAdd!(order),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add item'),
+                ),
+              ),
+            ],
             if (widget.showLogs && order.history.isNotEmpty) ...[
               const SizedBox(height: 12),
               _logsSection(context, order),

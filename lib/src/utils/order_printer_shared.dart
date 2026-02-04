@@ -10,6 +10,7 @@ pw.Document buildOrderDocument(
   pw.Font? arabicFallback,
   pw.Font? latinFallback,
 ]) {
+  final latinFont = latinFallback ?? baseFont;
   final theme = pw.ThemeData.withFont(
     base: baseFont,
     bold: baseFont,
@@ -19,7 +20,50 @@ pw.Document buildOrderDocument(
     ],
   );
   final doc = pw.Document(theme: theme);
-  final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
+  final dateFmt = DateFormat('yyyy-MM-dd HH:mm', 'en');
+
+  pw.TextStyle latinStyle({
+    double? fontSize,
+    pw.FontWeight? fontWeight,
+    PdfColor? color,
+  }) {
+    return pw.TextStyle(
+      font: latinFont,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+    );
+  }
+
+  pw.Widget labelWithValue(
+    String label,
+    String value, {
+    double fontSize = 11,
+    bool boldLabel = false,
+    bool boldValue = false,
+  }) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: fontSize,
+            fontWeight: boldLabel ? pw.FontWeight.bold : null,
+          ),
+        ),
+        pw.SizedBox(width: 4),
+        pw.Text(
+          value,
+          textDirection: pw.TextDirection.ltr,
+          style: latinStyle(
+            fontSize: fontSize,
+            fontWeight: boldValue ? pw.FontWeight.bold : null,
+          ),
+        ),
+      ],
+    );
+  }
 
   String statusLabel(String status) {
     switch (status) {
@@ -39,7 +83,7 @@ pw.Document buildOrderDocument(
   }
 
   String formatPrice(double? value) =>
-      value == null ? '-' : '${value.toStringAsFixed(2)} ₪';
+      value == null ? '-' : 'ILS ${value.toStringAsFixed(2)}';
 
   String formatQuantity(num value) =>
       value % 1 == 0 ? value.toInt().toString() : value.toString();
@@ -89,11 +133,17 @@ pw.Document buildOrderDocument(
                 spacing: 16,
                 runSpacing: 8,
                 children: [
-                  pw.Text('رقم الطلب: ${order.id}',
-                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(
-                    'التاريخ: ${dateFmt.format(order.createdAt)}',
-                    style: const pw.TextStyle(fontSize: 11),
+                  labelWithValue(
+                    'رقم الطلب:',
+                    '${order.id}',
+                    fontSize: 12,
+                    boldLabel: true,
+                    boldValue: true,
+                  ),
+                  labelWithValue(
+                    'التاريخ:',
+                    dateFmt.format(order.createdAt),
+                    fontSize: 11,
                   ),
                   if (order.city != null)
                     pw.Text('المدينة: ${order.city}',
@@ -147,7 +197,12 @@ pw.Document buildOrderDocument(
                 children: [
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('${row.index}', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 11)),
+                    child: pw.Text(
+                      '${row.index}',
+                      textDirection: pw.TextDirection.ltr,
+                      textAlign: pw.TextAlign.center,
+                      style: latinStyle(fontSize: 11),
+                    ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
@@ -162,24 +217,34 @@ pw.Document buildOrderDocument(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
                       formatQuantity(row.item.quantity),
+                      textDirection: pw.TextDirection.ltr,
                       textAlign: pw.TextAlign.center,
-                      style: pw.TextStyle(fontSize: 11),
+                      style: latinStyle(fontSize: 11),
                     ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
                       formatPrice(row.item.price),
+                      textDirection: pw.TextDirection.ltr,
                       textAlign: pw.TextAlign.right,
-                      style: pw.TextStyle(fontSize: 11),
+                      style: pw.TextStyle(
+                        font: latinFont,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
                       formatPrice(row.total == 0 ? null : row.total),
+                      textDirection: pw.TextDirection.ltr,
                       textAlign: pw.TextAlign.right,
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(
+                        font: latinFont,
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -191,9 +256,24 @@ pw.Document buildOrderDocument(
             padding: const pw.EdgeInsets.only(top: 6, bottom: 10),
             child: pw.Align(
               alignment: pw.Alignment.centerRight,
-              child: pw.Text(
-                'الإجمالي الكلي: ${formatPrice(grandTotal)}',
-                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+              child: pw.Row(
+                mainAxisSize: pw.MainAxisSize.min,
+                children: [
+                  pw.Text(
+                    'الإجمالي الكلي:',
+                    style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                  ),
+                  pw.SizedBox(width: 4),
+                  pw.Text(
+                    formatPrice(grandTotal),
+                    textDirection: pw.TextDirection.ltr,
+                    style: pw.TextStyle(
+                      font: latinFont,
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -247,9 +327,20 @@ pw.Document buildOrderDocument(
         ),
         pw.SizedBox(height: 20),
         pw.Center(
-          child: pw.Text(
-            'طُبع في: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
-            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          child: pw.Row(
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              pw.Text(
+                'طُبع في:',
+                style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+              ),
+              pw.SizedBox(width: 4),
+              pw.Text(
+                dateFmt.format(DateTime.now()),
+                textDirection: pw.TextDirection.ltr,
+                style: latinStyle(fontSize: 10, color: PdfColors.grey600),
+              ),
+            ],
           ),
         )
       ],

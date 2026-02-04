@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../services/api_client.dart';
 import '../services/order_service.dart';
+import '../utils/order_report.dart';
 import 'auth_notifier.dart';
 
 class OrderNotifier extends ChangeNotifier {
@@ -15,6 +16,9 @@ class OrderNotifier extends ChangeNotifier {
   String? error;
   String statusFilter = 'active';
   String searchTerm = '';
+  bool reportLoading = false;
+  String? reportError;
+  OrderReport? report;
   final List<String> _productCache = [];
   String? _role;
 
@@ -131,9 +135,27 @@ class OrderNotifier extends ChangeNotifier {
     if (!auth.isAuthenticated) {
       orders = [];
       _productCache.clear();
+      report = null;
+      reportError = null;
+      reportLoading = false;
       notifyListeners();
     } else {
       loadOrders();
+    }
+  }
+
+  Future<void> generateReport({required DateTime from, required DateTime to}) async {
+    reportLoading = true;
+    reportError = null;
+    notifyListeners();
+    try {
+      final fetched = await _fetchReportOrders();
+      report = OrderReportBuilder.build(orders: fetched, from: from, to: to);
+    } catch (e) {
+      reportError = '$e';
+    } finally {
+      reportLoading = false;
+      notifyListeners();
     }
   }
 
@@ -169,6 +191,66 @@ class OrderNotifier extends ChangeNotifier {
         return _service.fetchAdminOrders(status: status, search: searchTerm);
       default:
         return _service.fetchOrders(status: status, search: searchTerm);
+    }
+  }
+
+  Future<List<OrderModel>> _fetchReportOrders() {
+    return _fetchAllPages(limit: 20);
+  }
+
+  Future<List<OrderModel>> _fetchAllPages({required int limit}) async {
+    final all = <OrderModel>[];
+    var offset = 0;
+
+    while (true) {
+      final batch = await _fetchReportPage(limit: limit, offset: offset);
+      if (batch.isEmpty) break;
+      all.addAll(batch);
+      if (batch.length < limit) break;
+      offset += limit;
+    }
+
+    return all;
+  }
+
+  Future<List<OrderModel>> _fetchReportPage({required int limit, required int offset}) {
+    const status = 'all';
+    switch (_role) {
+      case 'accounter':
+        return _service.fetchAccounterOrders(
+          status: status,
+          limit: limit,
+          offset: offset,
+          includeHistory: false,
+        );
+      case 'maker':
+        return _service.fetchMakerOrders(
+          status: status,
+          limit: limit,
+          offset: offset,
+          includeHistory: false,
+        );
+      case 'taker':
+        return _service.fetchTakerOrders(
+          status: status,
+          limit: limit,
+          offset: offset,
+          includeHistory: false,
+        );
+      case 'admin':
+        return _service.fetchAdminOrders(
+          status: status,
+          limit: limit,
+          offset: offset,
+          includeHistory: false,
+        );
+      default:
+        return _service.fetchOrders(
+          status: status,
+          limit: limit,
+          offset: offset,
+          includeHistory: false,
+        );
     }
   }
 
