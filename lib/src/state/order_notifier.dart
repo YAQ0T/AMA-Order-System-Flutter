@@ -20,6 +20,7 @@ class OrderNotifier extends ChangeNotifier {
   String? reportError;
   OrderReport? report;
   final List<String> _productCache = [];
+  final Map<int, Future<void>> _itemStatusQueues = {};
   String? _role;
 
   Future<void> loadOrders({String? status, String? search}) async {
@@ -95,23 +96,37 @@ class OrderNotifier extends ChangeNotifier {
     bool? notifyAccounter,
     bool? skipEmail,
   }) async {
-    final updatedItems = order.items
-        .map((item) => {
-              'id': item.id,
-              'name': item.name,
-              'quantity': item.quantity,
-              'price': item.price,
-              'status': item.id == itemId ? status : item.status
-            })
-        .toList();
-    final payload = <String, dynamic>{'items': updatedItems};
-    if (notifyMaker != null) payload['notifyMaker'] = notifyMaker;
-    if (notifyAccounter != null) payload['notifyAccounter'] = notifyAccounter;
-    if (skipEmail != null) payload['skipEmail'] = skipEmail;
-    await _service.updateOrder(order.id, payload);
-    // Refresh full list to pick up server-calculated fields/logs
-    await loadOrders(status: statusFilter, search: searchTerm);
-    notifyListeners();
+    final previous = _itemStatusQueues[order.id];
+    final next = (previous?.catchError((_) {}) ?? Future<void>.value()).then((_) async {
+      final current = orders.firstWhere(
+        (candidate) => candidate.id == order.id,
+        orElse: () => order,
+      );
+      final updatedItems = current.items
+          .map((item) => {
+                'id': item.id,
+                'name': item.name,
+                'quantity': item.quantity,
+                'price': item.price,
+                'status': item.id == itemId ? status : item.status
+              })
+          .toList();
+      final payload = <String, dynamic>{'items': updatedItems};
+      if (notifyMaker != null) payload['notifyMaker'] = notifyMaker;
+      if (notifyAccounter != null) payload['notifyAccounter'] = notifyAccounter;
+      if (skipEmail != null) payload['skipEmail'] = skipEmail;
+      await _service.updateOrder(order.id, payload);
+      // Refresh full list to pick up server-calculated fields/logs
+      await loadOrders(status: statusFilter, search: searchTerm);
+      notifyListeners();
+    });
+
+    _itemStatusQueues[order.id] = next;
+    await next.whenComplete(() {
+      if (identical(_itemStatusQueues[order.id], next)) {
+        _itemStatusQueues.remove(order.id);
+      }
+    });
   }
 
   Future<void> updateOrderDetails(

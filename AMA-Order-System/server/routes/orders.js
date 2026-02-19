@@ -4,14 +4,142 @@ const { authenticateToken } = require('../middleware/auth');
 const { sendPushNotification } = require('../utils/push');
 const { sendOrderCreatedEmail, sendOrderUpdatedEmail, sendOrderUpdatedByTakerEmail, sendBulkOrdersEmail, sendCompletedOrderToAccounterEmail } = require('../utils/email');
 const { logActivity } = require('../utils/activityLogger');
+const { logOrderEvent } = require('../utils/orderRequestLogger');
 const { Op } = require('sequelize');
 const { sanitizeItems, buildOrderIncludes, fetchOrdersForRole } = require('./order_helpers');
 
 const router = express.Router();
 
+const getClientIp = (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.ip;
+};
+
+const buildActorInfo = (req) => ({
+    userId: req.user?.id ?? null,
+    username: req.user?.username ?? null,
+    role: req.user?.role ?? null,
+    ip: getClientIp(req)
+});
+
+const summarizeItemsForLog = (items, limit = 10) => {
+    if (!Array.isArray(items)) {
+        return { count: 0, sample: [] };
+    }
+
+    return {
+        count: items.length,
+        sample: items.slice(0, limit).map((item) => ({
+            id: item?.id ?? null,
+            name: item?.name ?? null,
+            quantity: item?.quantity ?? null,
+            price: item?.price ?? null,
+            status: item?.status ?? null
+        }))
+    };
+};
+
+const summarizeOrderForLog = (order) => ({
+    orderId: order?.id ?? null,
+    customerName: order?.title ?? null,
+    description: order?.description ?? null,
+    city: order?.city ?? null,
+    status: order?.status ?? null,
+    makerId: order?.makerId ?? null,
+    accounterId: order?.accounterId ?? null,
+    assignedTakerIds: Array.isArray(order?.AssignedTakers) ? order.AssignedTakers.map((t) => t.id) : [],
+    itemCount: Array.isArray(order?.Items) ? order.Items.length : 0,
+    items: summarizeItemsForLog(order?.Items || []).sample
+});
+
+const summarizeUpdateRequestForLog = (body = {}) => ({
+    title: body.title,
+    description: body.description,
+    city: body.city,
+    status: body.status,
+    assignedTakerIds: body.assignedTakerIds,
+    accounterId: body.accounterId,
+    notifyMaker: body.notifyMaker,
+    notifyAccounter: body.notifyAccounter,
+    skipEmail: body.skipEmail,
+    items: summarizeItemsForLog(body.items)
+});
+
+const buildItemsDiffForLog = (oldItems = [], newItems = []) => {
+    const oldMap = new Map();
+    const newMap = new Map();
+
+    oldItems.forEach((item) => {
+        const key = (item?.name || '').trim().toLowerCase();
+        if (key) oldMap.set(key, item);
+    });
+
+    newItems.forEach((item) => {
+        const key = (item?.name || '').trim().toLowerCase();
+        if (key) newMap.set(key, item);
+    });
+
+    let added = 0;
+    let removed = 0;
+    let quantityChanged = 0;
+    let statusChanged = 0;
+    const changedQuantityItems = [];
+    const changedStatusItems = [];
+
+    for (const [name, oldItem] of oldMap.entries()) {
+        if (!newMap.has(name)) {
+            removed += 1;
+            continue;
+        }
+
+        const newItem = newMap.get(name);
+        const oldQty = Number(oldItem?.quantity);
+        const newQty = Number(newItem?.quantity);
+        if (oldQty !== newQty) {
+            quantityChanged += 1;
+            changedQuantityItems.push({
+                name: newItem?.name || oldItem?.name || name,
+                from: oldQty,
+                to: newQty
+            });
+        }
+
+        const oldStatus = oldItem?.status ?? null;
+        const newStatus = newItem?.status ?? null;
+        if (oldStatus !== newStatus) {
+            statusChanged += 1;
+            changedStatusItems.push({
+                name: newItem?.name || oldItem?.name || name,
+                from: oldStatus,
+                to: newStatus
+            });
+        }
+    }
+
+    for (const name of newMap.keys()) {
+        if (!oldMap.has(name)) added += 1;
+    }
+
+    return {
+        oldCount: oldItems.length,
+        newCount: newItems.length,
+        added,
+        removed,
+        quantityChanged,
+        statusChanged,
+        quantityChangesSample: changedQuantityItems.slice(0, 10),
+        statusChangesSample: changedStatusItems.slice(0, 10)
+    };
+};
+
 // Create Order (Maker only)
 router.post('/', authenticateToken, async (req, res) => {
     let transaction;
+    const createStartAt = Date.now();
+    const actorInfo = buildActorInfo(req);
     try {
         if (!['maker', 'admin'].includes(req.user.role)) {
             return res.status(403).json({ error: 'Only makers or admins can create orders' });
@@ -19,6 +147,10 @@ router.post('/', authenticateToken, async (req, res) => {
 
         const { title, description, assignedTakerIds, items, city, status, accounterId } = req.body;
         console.log('Creating order:', { title, assignedTakerIds, makerId: req.user.id, city, status });
+        await logOrderEvent('ORDER_CREATE_START', {
+            actor: actorInfo,
+            request: summarizeUpdateRequestForLog(req.body)
+        });
 
         const sanitizedItems = sanitizeItems(items || []);
 
@@ -120,6 +252,12 @@ router.post('/', authenticateToken, async (req, res) => {
             items: sanitizedItems
         }, req.ip);
 
+        await logOrderEvent('ORDER_CREATE_SUCCESS', {
+            actor: actorInfo,
+            durationMs: Date.now() - createStartAt,
+            order: summarizeOrderForLog(completeOrder)
+        });
+
         res.status(201).json(completeOrder);
     } catch (error) {
         if (transaction) {
@@ -130,6 +268,15 @@ router.post('/', authenticateToken, async (req, res) => {
             }
         }
         console.error('Error creating order:', error);
+        await logOrderEvent('ORDER_CREATE_ERROR', {
+            actor: actorInfo,
+            durationMs: Date.now() - createStartAt,
+            request: summarizeUpdateRequestForLog(req.body),
+            error: {
+                message: error.message,
+                stack: error.stack
+            }
+        });
         await logActivity(req.user?.id, 'order_error', 'order', null, { message: error.message, phase: 'create' }, req.ip);
         const isValidationError = [
             'Order must have',
@@ -164,9 +311,18 @@ router.get('/', authenticateToken, async (req, res) => {
 // Update Order Status, Title, Description, Items, Assigned Takers
 router.put('/:id', authenticateToken, async (req, res) => {
     let transaction;
+    const updateStartAt = Date.now();
+    const actorInfo = buildActorInfo(req);
+    let beforeOrderSnapshot = null;
+    let beforeItemsSnapshot = [];
     try {
         console.log(`PUT /api/orders/${req.params.id} hit by user: ${req.user.username} (${req.user.role})`);
         console.log('Request body:', req.body);
+        await logOrderEvent('ORDER_UPDATE_START', {
+            actor: actorInfo,
+            orderId: Number(req.params.id),
+            request: summarizeUpdateRequestForLog(req.body)
+        });
 
         const { status, title, description, items, assignedTakerIds, skipEmail, accounterId } = req.body;
 
@@ -197,7 +353,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         let accounterToNotify = null;
         const changeSummary = [];
 
-        const order = await Order.findByPk(req.params.id, {
+        let order = await Order.findByPk(req.params.id, {
             include: buildOrderIncludes(req.user.role, {
                 includeEmails: true,
                 makerAttrs: ['id', 'username', 'role'],
@@ -208,6 +364,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
         }
+        beforeOrderSnapshot = summarizeOrderForLog(order);
+        beforeItemsSnapshot = Array.isArray(order.Items)
+            ? order.Items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                quantity: Number(item.quantity),
+                status: item.status ?? null
+            }))
+            : [];
 
         if (req.user.role === 'accounter') {
             if (order.accounterId !== req.user.id) {
@@ -223,6 +388,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
             }
 
             transaction = await sequelize.transaction();
+            const lockedOrder = await Order.findByPk(req.params.id, {
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            if (!lockedOrder) {
+                await transaction.rollback();
+                transaction = null;
+                return res.status(404).json({ error: 'Order not found' });
+            }
+            order = await Order.findByPk(req.params.id, {
+                include: buildOrderIncludes(req.user.role, {
+                    includeEmails: true,
+                    makerAttrs: ['id', 'username', 'role'],
+                    assignedTakerAttrs: ['id', 'username']
+                }),
+                transaction
+            });
 
             const previousStatus = order.status;
 
@@ -250,6 +433,21 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 to: 'entered_erp'
             }, req.ip);
 
+            await logOrderEvent('ORDER_UPDATE_SUCCESS', {
+                actor: actorInfo,
+                durationMs: Date.now() - updateStartAt,
+                orderId: order.id,
+                changedFields: ['status'],
+                statusChange: {
+                    from: previousStatus,
+                    to: 'entered_erp'
+                },
+                request: summarizeUpdateRequestForLog(req.body),
+                before: beforeOrderSnapshot,
+                after: summarizeOrderForLog(updatedOrder),
+                itemsDiff: buildItemsDiffForLog(beforeItemsSnapshot, updatedOrder.Items || [])
+            });
+
             return res.json(updatedOrder);
         }
 
@@ -272,6 +470,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
 
         transaction = await sequelize.transaction();
+        const lockedOrder = await Order.findByPk(req.params.id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        });
+
+        if (!lockedOrder) {
+            await transaction.rollback();
+            transaction = null;
+            return res.status(404).json({ error: 'Order not found' });
+        }
+        order = await Order.findByPk(req.params.id, {
+            include: buildOrderIncludes(req.user.role, {
+                includeEmails: true,
+                makerAttrs: ['id', 'username', 'role'],
+                assignedTakerAttrs: ['id', 'username']
+            }),
+            transaction
+        });
 
         // Handle Details Update (Title, Description, Items, City)
         if (title !== undefined || description !== undefined || items !== undefined || assignedTakerIds !== undefined || req.body.city !== undefined) {
@@ -599,6 +815,21 @@ router.put('/:id', authenticateToken, async (req, res) => {
             city: updatedOrder.city
         }, req.ip);
 
+        await logOrderEvent('ORDER_UPDATE_SUCCESS', {
+            actor: actorInfo,
+            durationMs: Date.now() - updateStartAt,
+            orderId: order.id,
+            changedFields: changeSummary,
+            statusChange: {
+                from: beforeOrderSnapshot?.status ?? null,
+                to: updatedOrder.status ?? null
+            },
+            request: summarizeUpdateRequestForLog(req.body),
+            before: beforeOrderSnapshot,
+            after: summarizeOrderForLog(updatedOrder),
+            itemsDiff: buildItemsDiffForLog(beforeItemsSnapshot, updatedOrder.Items || [])
+        });
+
         // Send push notifications after successful commit
         if (takersToNotifyOnResend.length > 0) {
             takersToNotifyOnResend.forEach(id => {
@@ -659,6 +890,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
             }
         }
         console.error('Error updating order:', error);
+        await logOrderEvent('ORDER_UPDATE_ERROR', {
+            actor: actorInfo,
+            durationMs: Date.now() - updateStartAt,
+            orderId: Number(req.params.id),
+            request: summarizeUpdateRequestForLog(req.body),
+            error: {
+                message: error.message,
+                stack: error.stack
+            }
+        });
         await logActivity(req.user?.id, 'order_error', 'order', req.params.id, { message: error.message, phase: 'update' }, req.ip);
         const isValidationError = [
             'Order must have',
@@ -702,12 +943,20 @@ router.get('/suggestions', authenticateToken, async (req, res) => {
 
 // DELETE /api/orders/:id - Delete an order
 router.delete('/:id', authenticateToken, async (req, res) => {
+    const deleteStartAt = Date.now();
+    const actorInfo = buildActorInfo(req);
     try {
+        await logOrderEvent('ORDER_DELETE_START', {
+            actor: actorInfo,
+            orderId: Number(req.params.id)
+        });
         if (req.user.role !== 'maker') {
             return res.status(403).json({ error: 'Only makers can delete orders' });
         }
 
-        const order = await Order.findByPk(req.params.id);
+        const order = await Order.findByPk(req.params.id, {
+            include: buildOrderIncludes(req.user.role, { includeEmails: false, includeHistory: false })
+        });
 
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
@@ -724,9 +973,25 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         // Delete the order
         await order.destroy();
 
+        await logOrderEvent('ORDER_DELETE_SUCCESS', {
+            actor: actorInfo,
+            durationMs: Date.now() - deleteStartAt,
+            orderId: Number(req.params.id),
+            deletedOrder: summarizeOrderForLog(order)
+        });
+
         res.json({ message: 'Order deleted successfully' });
     } catch (error) {
         console.error('Error deleting order:', error);
+        await logOrderEvent('ORDER_DELETE_ERROR', {
+            actor: actorInfo,
+            durationMs: Date.now() - deleteStartAt,
+            orderId: Number(req.params.id),
+            error: {
+                message: error.message,
+                stack: error.stack
+            }
+        });
         res.status(500).json({ error: error.message });
     }
 });
